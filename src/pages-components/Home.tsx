@@ -1,9 +1,11 @@
-import { Terminal } from "@components";
+import { ScreenBackground, Terminal } from "@components";
 
 const HomePage = () => {
   return (
     <main>
-      <Terminal />
+      <ScreenBackground>
+        <Terminal />
+      </ScreenBackground>
     </main>
   );
 };
