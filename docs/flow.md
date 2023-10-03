@@ -12,3 +12,5 @@ match st { <br>
 &ensp;&ensp;Statement[] => eval <br>
 &ensp;&ensp;Op => check the OP and eval under conditions of the operator <br>
 }
+
+parse -> check -> exec

@@ -114,4 +114,89 @@ describe("Shell", () => {
       ]);
     });
   });
+
+  describe("Parse", () => {
+    it("should parse Operator for each op received on RawSplited", () => {
+      const { sut } = makeSut();
+      const out = sut.parse([";", "|", "||", "&&"]);
+      const exp = [
+        Operator.Semicolon,
+        Operator.Pipe,
+        Operator.Or,
+        Operator.And,
+      ];
+      expect(out).toEqual(exp);
+    });
+
+    it("should parse a Statement for each statement received on RawSplited", () => {
+      const { sut } = makeSut();
+      const out = sut.parse([
+        "echo 123",
+        ";",
+        "cd ~",
+        ";",
+        "echo $PWD",
+        "|",
+        "jq",
+      ]);
+      const exp = [
+        {
+          bin: "echo",
+          args: ["123"],
+        },
+        Operator.Semicolon,
+        {
+          bin: "cd",
+          args: ["~"],
+        },
+        Operator.Semicolon,
+        {
+          bin: "echo",
+          args: ["$PWD"],
+        },
+        Operator.Pipe,
+        {
+          bin: "jq",
+          args: [],
+        },
+      ];
+      expect(out).toEqual(exp);
+    });
+
+    it("should parse a Var Addition on RawSplited", () => {
+      const { sut } = makeSut();
+      const out = sut.parse(["var=variable", ";", "echo $var"]);
+      const exp = [
+        {
+          type: "var",
+          name: "var",
+          value: "variable",
+        },
+        Operator.Semicolon,
+        {
+          bin: "echo",
+          args: ["$var"],
+        },
+      ];
+      expect(out).toEqual(exp);
+    });
+
+    it("should parse a Env Addition on RawSplited", () => {
+      const { sut } = makeSut();
+      const out = sut.parse(["export VAR=variable", ";", "echo $VAR"]);
+      const exp = [
+        {
+          type: "env",
+          name: "VAR",
+          value: "variable",
+        },
+        Operator.Semicolon,
+        {
+          bin: "echo",
+          args: ["$VAR"],
+        },
+      ];
+      expect(out).toEqual(exp);
+    });
+  });
 });
