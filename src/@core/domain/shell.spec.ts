@@ -1,6 +1,6 @@
 import { BinSet } from "./binaries";
 import { EnvSet, VarSet } from "./environment";
-import { Shell } from "./shell";
+import { Operator, Shell } from "./shell";
 
 const makeSut = () => {
   const sut = new Shell(new EnvSet([]), new VarSet([]), new BinSet([]));
@@ -10,7 +10,7 @@ const makeSut = () => {
 };
 
 describe("Shell", () => {
-  describe.only("Split Expressions", () => {
+  describe("Split Expressions", () => {
     it("should return a empty array to an empty string", () => {
       const { sut } = makeSut();
       const out = sut.split_expression("");
@@ -25,9 +25,8 @@ describe("Shell", () => {
 
     it("should split a statement and op", () => {
       const { sut } = makeSut();
-      let out: Array<String | String[]>;
 
-      out = sut.split_expression("echo 123;");
+      let out = sut.split_expression("echo 123;");
       expect(out).toEqual(["echo 123", ";"]);
 
       out = sut.split_expression("echo 123 ||");
@@ -48,9 +47,8 @@ describe("Shell", () => {
 
     it("should split a subshell in one item", () => {
       const { sut } = makeSut();
-      let out: Array<String | String[]>;
 
-      out = sut.split_expression("echo 123; (echo 234)");
+      let out = sut.split_expression("echo 123; (echo 234)");
       expect(out).toEqual(["echo 123", ";", ["echo 234"]]);
 
       out = sut.split_expression("echo 123; (echo 234) || echo 345");

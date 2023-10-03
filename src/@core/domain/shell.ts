@@ -1,22 +1,28 @@
 import { BinSet, EnvSet } from "@domain";
 import { VarSet } from "./environment";
+import { pipe } from "fp-ts/lib/function";
+
+type RawSplited = (String | String[] | RawSplited)[];
 
 type Statement = {
   bin_name: string;
   arguments: string[];
 };
 
-type Operator = {
-  op: string;
-};
+enum Operator {
+  Pipe = "|",
+  Or = "||",
+  And = "&&",
+  Semicolon = ";",
+}
 
 type Subshell = {
   env: EnvSet | undefined;
   bin: BinSet | undefined;
-  statements: Array<Statement | Subshell | Operator>;
+  statements: Parsed;
 };
 
-const OPERATORS = ["|", "&&", "||", ";"];
+type Parsed = (Statement | Operator | Subshell)[];
 
 class Shell {
   constructor(
@@ -25,52 +31,42 @@ class Shell {
     protected binSet: BinSet
   ) {}
 
-  fix_double_operator(input: String[]): String[] {
-    const splited = input;
-    for (let index = 0; index < splited.length; index++) {
-      if (splited[index] == "|" && splited[index + 1] == "|") {
-        splited[index] = "||";
-        splited.splice(index + 1, 1);
-      } else if (splited[index] == "&" && splited[index + 1] == "&") {
-        splited[index] = "&&";
-        splited.splice(index + 1, 1);
-      }
+  split_operators(input: String): String[] {
+    return input.split(/(?=[|]|[;]|[&]|[(]|[)])|(?<=[|]|[;]|[&]|[(]|[)])/g);
+  }
+
+  fix_double_operators(input: String[]): String[] {
+    for (let index = 0; index < input.length; index++) {
+      if (input[index] == "|" && input[index + 1] == "|")
+        input.splice(index, 2, "||");
+      else if (input[index] == "&" && input[index + 1] == "&")
+        input.splice(index, 2, "&&");
     }
-    return splited;
+    return input;
   }
 
-  fix_paranthesis(input: String[]): Array<String | String[]> {
-    let as_json = JSON.stringify(input);
-    let open_replaced = as_json.replaceAll('"(",', "[");
-    let all_replaced = open_replaced.replaceAll(',")"', "]");
-    return JSON.parse(all_replaced);
+  fix_empty_and_withespaces(input: String[]): String[] {
+    return input.map((value) => value.trim()).filter((value) => value !== "");
   }
 
-  remove_empty_and_whitespaces(input: String[]): String[] {
-    return input
-      .map((value) => {
-        return value.trim();
-      })
-      .filter((value) => {
-        return value !== "";
-      });
+  fix_paranthesis(input: String[]): RawSplited {
+    let replaceOpen = (s: String) => s.replaceAll('"(",', "[");
+    let replaceClose = (s: String) => s.replaceAll(',")"', "]");
+    return pipe(input, JSON.stringify, replaceOpen, replaceClose, JSON.parse);
   }
 
-  split_expression(input: String): Array<String | String[]> {
-    let psts_acc: String[] = [];
-    if (!input || input === "") return psts_acc;
-    let splited: String[];
-    splited = input.split(/(?=[|]|[;]|[&]|[(]|[)])|(?<=[|]|[;]|[&]|[(]|[)])/g);
-    psts_acc = this.fix_double_operator(splited);
-    psts_acc = this.remove_empty_and_whitespaces(psts_acc);
-    let sts_acc = this.fix_paranthesis(psts_acc);
-    return sts_acc;
+  split_expression(input: String): RawSplited {
+    return pipe<String, String[], String[], String[], RawSplited>(
+      input,
+      this.split_operators,
+      this.fix_double_operators,
+      this.fix_empty_and_withespaces,
+      this.fix_paranthesis
+    );
   }
 
-  parse(
-    input: Array<String | String[]>
-  ): Array<Statement | Subshell | Operator> {
-    let sts_acc: Array<Statement | Subshell | Operator> = [];
+  parse(input: RawSplited): Parsed {
+    let sts_acc: Parsed = [];
     return sts_acc;
   }
 
@@ -83,4 +79,4 @@ class Shell {
   }
 }
 
-export { Shell };
+export { Shell, Operator };
