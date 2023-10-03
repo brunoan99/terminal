@@ -1,10 +1,22 @@
-type Bin = (input: string) => BinResponse;
-
-type BinSet = { [key: string]: Bin };
-
 type BinResponse = {
   code: number;
   data: string;
 };
 
-export type { Bin, BinSet, BinResponse };
+class Bin {
+  constructor(
+    public name: string,
+    public exec: (input: string) => BinResponse
+  ) {}
+}
+
+class BinSet {
+  constructor(public bins: Bin[]) {}
+
+  contains(name: string): Bin | undefined {
+    return this.bins.find((a) => (a.name === name ? a : undefined));
+  }
+}
+
+export type { BinResponse };
+export { Bin, BinSet };
