@@ -116,7 +116,7 @@ describe("Shell", () => {
   });
 
   describe("Parse", () => {
-    it("should parse Operator for each op received on RawSplited", () => {
+    it("should parse Operator", () => {
       const { sut } = makeSut();
       const out = sut.parse([";", "|", "||", "&&"]);
       const exp = [
@@ -128,7 +128,7 @@ describe("Shell", () => {
       expect(out).toEqual(exp);
     });
 
-    it("should parse a Statement for each statement received on RawSplited", () => {
+    it("should parse a Statement", () => {
       const { sut } = makeSut();
       const out = sut.parse([
         "echo 123",
@@ -141,21 +141,25 @@ describe("Shell", () => {
       ]);
       const exp = [
         {
+          type: "bin",
           bin: "echo",
           args: ["123"],
         },
         Operator.Semicolon,
         {
+          type: "bin",
           bin: "cd",
           args: ["~"],
         },
         Operator.Semicolon,
         {
+          type: "bin",
           bin: "echo",
           args: ["$PWD"],
         },
         Operator.Pipe,
         {
+          type: "bin",
           bin: "jq",
           args: [],
         },
@@ -163,7 +167,7 @@ describe("Shell", () => {
       expect(out).toEqual(exp);
     });
 
-    it("should parse a Var Addition on RawSplited", () => {
+    it("should parse a Var Addition", () => {
       const { sut } = makeSut();
       const out = sut.parse(["var=variable", ";", "echo $var"]);
       const exp = [
@@ -174,6 +178,7 @@ describe("Shell", () => {
         },
         Operator.Semicolon,
         {
+          type: "bin",
           bin: "echo",
           args: ["$var"],
         },
@@ -181,7 +186,7 @@ describe("Shell", () => {
       expect(out).toEqual(exp);
     });
 
-    it("should parse a Env Addition on RawSplited", () => {
+    it("should parse a Env Addition", () => {
       const { sut } = makeSut();
       const out = sut.parse(["export VAR=variable", ";", "echo $VAR"]);
       const exp = [
@@ -192,8 +197,38 @@ describe("Shell", () => {
         },
         Operator.Semicolon,
         {
+          type: "bin",
           bin: "echo",
           args: ["$VAR"],
+        },
+      ];
+      expect(out).toEqual(exp);
+    });
+
+    it("should parse a Subshell", () => {
+      const { sut } = makeSut();
+      const out = sut.parse(["echo 123", ";", ["echo 234", "||", "echo 345"]]);
+      const exp = [
+        {
+          type: "bin",
+          bin: "echo",
+          args: ["123"],
+        },
+        Operator.Semicolon,
+        {
+          statements: [
+            {
+              type: "bin",
+              bin: "echo",
+              args: ["234"],
+            },
+            Operator.Or,
+            {
+              type: "bin",
+              bin: "echo",
+              args: ["345"],
+            },
+          ],
         },
       ];
       expect(out).toEqual(exp);

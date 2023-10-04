@@ -5,10 +5,12 @@ import { Option, some as Some, none as None } from "fp-ts/lib/Option";
 
 type RawSplited = (String | String[] | RawSplited)[];
 
-type Statement = {
+type BinCall = {
+  type: "bin";
   bin: string;
   args: string[];
 };
+
 type VarChange = {
   type: "var";
   name: string;
@@ -29,12 +31,10 @@ enum Operator {
 }
 
 type Subshell = {
-  env: EnvSet | undefined;
-  bin: BinSet | undefined;
   statements: Parsed;
 };
 
-type Parsed = (Statement | VarChange | EnvChange | Operator | Subshell)[];
+type Parsed = (BinCall | VarChange | EnvChange | Operator | Subshell)[];
 
 class Shell {
   constructor(
@@ -104,14 +104,18 @@ class Shell {
     return None;
   }
 
-  private check_statement(input: String): Option<Statement> {
+  private check_statement(input: String): Option<BinCall> {
     let expressions = input.split(" ");
-    return Some({ bin: expressions[0], args: expressions.slice(1) });
+    return Some({
+      type: "bin",
+      bin: expressions[0],
+      args: expressions.slice(1),
+    });
   }
 
   private parse_unit(
     input: String
-  ): Statement | Operator | EnvChange | VarChange {
+  ): BinCall | Operator | EnvChange | VarChange {
     let option_operator = this.check_operators(input);
     if (option_operator._tag === "Some") return option_operator.value;
 
@@ -124,13 +128,15 @@ class Shell {
     let option_statement = this.check_statement(input);
     if (option_statement._tag === "Some") return option_statement.value;
 
-    return { bin: "ops", args: [] };
+    return { type: "bin", bin: "ops", args: [] };
   }
 
   parse(input: RawSplited): Parsed {
     return input.map((value) => {
       if (typeof value === "string") return this.parse_unit(value as String);
-      else return { bin: "ops", args: [] };
+      if (typeof value === "object")
+        return { statements: this.parse(value as RawSplited) };
+      else return { type: "bin", bin: "ops", args: [] };
     });
   }
 
@@ -144,4 +150,4 @@ class Shell {
 }
 
 export { Shell, Operator };
-export type { Statement, EnvChange, Var, Subshell };
+export type { BinCall as Statement, EnvChange, Var, Subshell };
