@@ -10,6 +10,18 @@ class EnvSet {
   }
 }
 
+class Environment {
+  constructor(public envSet: EnvSet) {}
+
+  get set(): EnvSet {
+    return this.envSet;
+  }
+
+  contains(name: string): Env | undefined {
+    return this.envSet.contains(name);
+  }
+}
+
 class Var {
   constructor(public name: string, public value: string) {}
 }
@@ -22,4 +34,4 @@ class VarSet {
   }
 }
 
-export { Env, EnvSet, Var, VarSet };
+export { Env, EnvSet, Environment, Var, VarSet };

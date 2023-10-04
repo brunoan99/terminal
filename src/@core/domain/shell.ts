@@ -1,19 +1,20 @@
-import { BinSet, EnvSet } from "@domain";
+import { BinSet, EnvSet, Op } from "@domain";
 import { Var, VarSet } from "./environment";
 import { pipe } from "fp-ts/lib/function";
 import { Option, some as Some, none as None, isSome } from "fp-ts/lib/Option";
+import { Either, left as Left, right as Right, isLeft } from "fp-ts/lib/Either";
 
-const MatchFirstSome = <F, W>(
+const FirstSomeOnMap = <F, W>(
   input: F,
   func: ((a: F) => Option<W>)[]
 ): Option<W> => {
   if (func.length === 0) return None;
   let out = func[0](input);
   if (isSome(out)) return Some(out.value);
-  else return MatchFirstSome(input, func.slice(1));
+  else return FirstSomeOnMap(input, func.slice(1));
 };
 
-type RawSplited = (String | String[] | RawSplited)[];
+type RawSplited = (string | string[] | RawSplited)[];
 
 type BinCall = {
   type: "bin";
@@ -33,14 +34,13 @@ type EnvChange = {
   value: string;
 };
 
-enum Operator {
-  Pipe = "|",
-  Or = "||",
-  And = "&&",
-  Semicolon = ";",
-}
+type Operator = {
+  type: "op";
+  op: ";" | "|" | "||" | "&&";
+};
 
 type Subshell = {
+  type: "subshell";
   statements: Parsed;
 };
 
@@ -54,11 +54,11 @@ class Shell {
     protected binSet: BinSet
   ) {}
 
-  private split_operators(input: String): String[] {
+  private split_operators(input: string): string[] {
     return input.split(/(?=[|]|[;]|[&]|[(]|[)])|(?<=[|]|[;]|[&]|[(]|[)])/g);
   }
 
-  private fix_double_operators(input: String[]): String[] {
+  private split_fix_double_operators(input: string[]): string[] {
     for (let index = 0; index < input.length; index++) {
       if (input[index] == "|" && input[index + 1] == "|")
         input.splice(index, 2, "||");
@@ -68,35 +68,35 @@ class Shell {
     return input;
   }
 
-  private fix_empty_and_withespaces(input: String[]): String[] {
+  private split_fix_empty_and_withespaces(input: string[]): string[] {
     return input.map((value) => value.trim()).filter((value) => value !== "");
   }
 
-  private fix_paranthesis(input: String[]): RawSplited {
-    let replaceOpen = (s: String) => s.replaceAll('"(",', "[");
-    let replaceClose = (s: String) => s.replaceAll(',")"', "]");
+  private split_fix_paranthesis(input: string[]): RawSplited {
+    let replaceOpen = (s: string) => s.replaceAll('"(",', "[");
+    let replaceClose = (s: string) => s.replaceAll(',")"', "]");
     return pipe(input, JSON.stringify, replaceOpen, replaceClose, JSON.parse);
   }
 
-  split_expression(input: String): RawSplited {
-    return pipe<String, String[], String[], String[], RawSplited>(
+  private split_expression(input: string): RawSplited {
+    return pipe<string, string[], string[], string[], RawSplited>(
       input,
       this.split_operators,
-      this.fix_double_operators,
-      this.fix_empty_and_withespaces,
-      this.fix_paranthesis
+      this.split_fix_double_operators,
+      this.split_fix_empty_and_withespaces,
+      this.split_fix_paranthesis
     );
   }
 
-  private check_operators(input: String): Option<Operator> {
-    if (input === ";") return Some(Operator.Semicolon);
-    if (input === "|") return Some(Operator.Pipe);
-    if (input === "||") return Some(Operator.Or);
-    if (input === "&&") return Some(Operator.And);
-    return None;
+  private parse_operators(input: string): Option<Operator> {
+    if (![";", "|", "||", "&&"].includes(input)) return None;
+    return Some({
+      type: "op",
+      op: input as ";" | "|" | "||" | "&&",
+    });
   }
 
-  private check_var_change(input: String): Option<VarChange> {
+  private parse_var_change(input: string): Option<VarChange> {
     let expression = input.split(" ");
     if (expression.length > 1) return None;
     let variable = input.split("=");
@@ -105,7 +105,7 @@ class Shell {
     return None;
   }
 
-  private check_env_change(input: String): Option<EnvChange> {
+  private parse_env_change(input: string): Option<EnvChange> {
     let expression = input.split(" ");
     if (expression.length !== 2) return None;
     if (expression[0] === "export") {
@@ -115,7 +115,7 @@ class Shell {
     return None;
   }
 
-  private check_bin_call(input: String): Option<BinCall> {
+  private parse_bin_call(input: string): Option<BinCall> {
     let expressions = input.split(" ");
     return Some({
       type: "bin",
@@ -124,37 +124,74 @@ class Shell {
     });
   }
 
-  private parse_unit(input: String): Expression {
-    const checks = MatchFirstSome<String, Expression>(input, [
-      this.check_operators,
-      this.check_var_change,
-      this.check_env_change,
-      this.check_bin_call,
+  private parse_unit(input: string): Expression {
+    const checks = FirstSomeOnMap<string, Expression>(input, [
+      this.parse_operators,
+      this.parse_var_change,
+      this.parse_env_change,
+      this.parse_bin_call,
     ]);
     if (isSome(checks)) return checks.value;
     return { type: "bin", bin: "ops", args: [] };
   }
 
   private parse_sub(input: RawSplited): Subshell {
-    return { statements: this.parse(input as RawSplited) };
+    return {
+      type: "subshell",
+      statements: this.parse_aux(input as RawSplited),
+    };
   }
 
-  parse(input: RawSplited): Parsed {
+  private parse_aux(input: RawSplited): Parsed {
     return input.map((value) => {
       return typeof value === "string"
-        ? this.parse_unit(value as String)
+        ? this.parse_unit(value as string)
         : this.parse_sub(value as RawSplited);
     });
   }
 
-  check(input: string): void {
-    return;
+  parse(input: string): Parsed {
+    const splited = this.split_expression(input);
+    const parsed = this.parse_aux(splited);
+    return parsed;
   }
 
-  exec(input: string): string {
-    return "";
+  private check_sequential_operators(
+    input: Expression[]
+  ): Either<String, null> {
+    console.log(input);
+    return Right(null);
+  }
+
+  check(input: Parsed): Either<string, null> {
+    input.map((value) => {
+      if (value.type === "bin") return console.log("Bin: ", value);
+      if (value.type === "op") return console.log("Operator: ", value);
+      if (value.type === "env") return console.log("Env: ", value);
+      if (value.type === "var") return console.log("Var: ", value);
+      if (value.type === "subshell") return this.check(value.statements);
+    });
+    return Right(null);
+  }
+
+  eval(input: Parsed): Op {
+    throw new Error();
+  }
+
+  exec(input: string): Op {
+    const parsed = this.parse(input);
+    const check = this.check(parsed);
+    if (isLeft(check))
+      return {
+        path: "",
+        input: input,
+        output: check.left,
+        code: 1,
+      };
+    const result = this.eval(parsed);
+    return result;
   }
 }
 
-export { Shell, Operator };
-export type { BinCall, EnvChange, Var, Subshell, Expression };
+export { Shell };
+export type { BinCall, EnvChange, Var, Operator, Subshell, Expression };
