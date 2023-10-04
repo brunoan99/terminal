@@ -1,7 +1,17 @@
 import { BinSet, EnvSet } from "@domain";
 import { Var, VarSet } from "./environment";
 import { pipe } from "fp-ts/lib/function";
-import { Option, some as Some, none as None } from "fp-ts/lib/Option";
+import { Option, some as Some, none as None, isSome } from "fp-ts/lib/Option";
+
+const MatchFirstSome = <F, W>(
+  input: F,
+  func: ((a: F) => Option<W>)[]
+): Option<W> => {
+  if (func.length === 0) return None;
+  let out = func[0](input);
+  if (isSome(out)) return Some(out.value);
+  else return MatchFirstSome(input, func.slice(1));
+};
 
 type RawSplited = (String | String[] | RawSplited)[];
 
@@ -34,7 +44,8 @@ type Subshell = {
   statements: Parsed;
 };
 
-type Parsed = (BinCall | VarChange | EnvChange | Operator | Subshell)[];
+type Expression = BinCall | VarChange | EnvChange | Operator;
+type Parsed = (Expression | Subshell)[];
 
 class Shell {
   constructor(
@@ -104,7 +115,7 @@ class Shell {
     return None;
   }
 
-  private check_statement(input: String): Option<BinCall> {
+  private check_bin_call(input: String): Option<BinCall> {
     let expressions = input.split(" ");
     return Some({
       type: "bin",
@@ -113,30 +124,26 @@ class Shell {
     });
   }
 
-  private parse_unit(
-    input: String
-  ): BinCall | Operator | EnvChange | VarChange {
-    let option_operator = this.check_operators(input);
-    if (option_operator._tag === "Some") return option_operator.value;
-
-    let option_var_change = this.check_var_change(input);
-    if (option_var_change._tag === "Some") return option_var_change.value;
-
-    let option_env_change = this.check_env_change(input);
-    if (option_env_change._tag === "Some") return option_env_change.value;
-
-    let option_statement = this.check_statement(input);
-    if (option_statement._tag === "Some") return option_statement.value;
-
+  private parse_unit(input: String): Expression {
+    const checks = MatchFirstSome<String, Expression>(input, [
+      this.check_operators,
+      this.check_var_change,
+      this.check_env_change,
+      this.check_bin_call,
+    ]);
+    if (isSome(checks)) return checks.value;
     return { type: "bin", bin: "ops", args: [] };
+  }
+
+  private parse_sub(input: RawSplited): Subshell {
+    return { statements: this.parse(input as RawSplited) };
   }
 
   parse(input: RawSplited): Parsed {
     return input.map((value) => {
-      if (typeof value === "string") return this.parse_unit(value as String);
-      if (typeof value === "object")
-        return { statements: this.parse(value as RawSplited) };
-      else return { type: "bin", bin: "ops", args: [] };
+      return typeof value === "string"
+        ? this.parse_unit(value as String)
+        : this.parse_sub(value as RawSplited);
     });
   }
 
@@ -150,4 +157,4 @@ class Shell {
 }
 
 export { Shell, Operator };
-export type { BinCall as Statement, EnvChange, Var, Subshell };
+export type { BinCall, EnvChange, Var, Subshell, Expression };
