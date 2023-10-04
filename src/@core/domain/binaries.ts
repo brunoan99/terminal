@@ -6,7 +6,7 @@ type BinResponse = {
 class Bin {
   constructor(
     public name: string,
-    public exec: (input: string) => BinResponse
+    public exec: (input: string[]) => BinResponse
   ) {}
 }
 

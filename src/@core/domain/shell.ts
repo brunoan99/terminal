@@ -156,21 +156,43 @@ class Shell {
     return parsed;
   }
 
-  private check_sequential_operators(
-    input: Expression[]
-  ): Either<String, null> {
-    console.log(input);
+  private check_sequential_operators(input: Parsed): Either<string, null> {
+    const seq_op = input.find((value, index, arr) => {
+      if (index < arr.length && index > 0)
+        return value.type === "op" && arr[index - 1].type === "op";
+    });
+    if (seq_op !== undefined)
+      return Left(`zsh: parse error near \`${(seq_op as Operator).op}'`);
+    return Right(null);
+  }
+
+  private check_bin(input: BinCall): Either<string, null> {
+    if (!this.binSet.contains(input.bin))
+      return Left(`zsh: command not found: ${input.bin}`);
+    return Right(null);
+  }
+
+  private check_one(input: Expression | Subshell): Either<string, null> {
+    if (input.type === "bin") return this.check_bin(input);
+    if (input.type === "subshell") return this.check(input.statements);
+    return Right(null);
+  }
+
+  private check_every(input: Parsed): Either<string, null> {
+    for (const value of input) {
+      const check = this.check_one(value);
+      if (isLeft(check)) return check;
+    }
     return Right(null);
   }
 
   check(input: Parsed): Either<string, null> {
-    input.map((value) => {
-      if (value.type === "bin") return console.log("Bin: ", value);
-      if (value.type === "op") return console.log("Operator: ", value);
-      if (value.type === "env") return console.log("Env: ", value);
-      if (value.type === "var") return console.log("Var: ", value);
-      if (value.type === "subshell") return this.check(value.statements);
-    });
+    const check_seq_op = this.check_sequential_operators(input);
+    if (isLeft(check_seq_op)) return check_seq_op;
+
+    const check_every = this.check_every(input);
+    if (isLeft(check_every)) return check_every;
+
     return Right(null);
   }
 

@@ -1,4 +1,4 @@
-import { BinSet } from "./binaries";
+import { Bin, BinSet } from "./binaries";
 import { EnvSet, VarSet } from "./environment";
 import { Operator, Shell } from "./shell";
 
@@ -271,7 +271,12 @@ describe("Shell", () => {
     let sut: Shell;
 
     beforeAll(() => {
-      sut = new Shell(new EnvSet([]), new VarSet([]), new BinSet([]));
+      const echoBin = new Bin("echo", (input: string[]) => ({
+        code: 0,
+        data: "aopa",
+      }));
+      const binSet = new BinSet([echoBin]);
+      sut = new Shell(new EnvSet([]), new VarSet([]), binSet);
     });
 
     it("should return no error when check should pass", () => {
@@ -303,6 +308,40 @@ describe("Shell", () => {
           },
         ])
       ).toEqual({ _tag: "Right", right: null });
+    });
+
+    it("should return error when found operators following each other", () => {
+      expect(
+        sut.check([
+          { type: "bin", bin: "echo", args: ["123"] },
+          { type: "op", op: "||" },
+          { type: "op", op: "&&" },
+          { type: "bin", bin: "echo", args: ["234"] },
+          { type: "op", op: ";" },
+        ])
+      ).toEqual({ _tag: "Left", left: "zsh: parse error near `&&'" });
+    });
+
+    it("should return error on first bin not found in binSet", () => {
+      expect(
+        sut.check([
+          { type: "bin", bin: "echo", args: ["123"] },
+          { type: "op", op: ";" },
+          { type: "bin", bin: "unexistent", args: [] },
+        ])
+      ).toEqual({ _tag: "Left", left: "zsh: command not found: unexistent" });
+
+      expect(
+        sut.check([
+          { type: "bin", bin: "echo", args: ["123"] },
+          { type: "op", op: ";" },
+          { type: "bin", bin: "unexistent", args: [] },
+          { type: "op", op: ";" },
+          { type: "bin", bin: "echo", args: ["234"] },
+          { type: "op", op: ";" },
+          { type: "bin", bin: "other_unexistent", args: [] },
+        ])
+      ).toEqual({ _tag: "Left", left: "zsh: command not found: unexistent" });
     });
   });
 });
