@@ -273,7 +273,7 @@ describe("Shell", () => {
     beforeAll(() => {
       const echoBin = new Bin("echo", (input: string[]) => ({
         code: 0,
-        data: "aopa",
+        out: "aopa",
       }));
       const binSet = new BinSet([echoBin]);
       sut = new Shell(new Environment(), binSet);
@@ -384,7 +384,7 @@ describe("Shell", () => {
     beforeEach(() => {
       const echoBin = new Bin("echo", (input: string[]) => ({
         code: 0,
-        data: input[0],
+        out: `${input[0]}\n`,
       }));
       const binSet = new BinSet([echoBin]);
       sut = new Shell(new Environment(), binSet);
@@ -393,7 +393,7 @@ describe("Shell", () => {
     it("should process a bin call", () => {
       expect(sut.eval([{ type: "bin", bin: "echo", args: ["123"] }])).toEqual({
         type: "eval_resp",
-        output: "123",
+        output: "123\n",
         code: 0,
       });
     });
@@ -403,7 +403,7 @@ describe("Shell", () => {
       expect(sut.eval([{ type: "bin", bin: "echo", args: ["$HOME"] }])).toEqual(
         {
           type: "eval_resp",
-          output: "/home/user",
+          output: "/home/user\n",
           code: 0,
         }
       );
@@ -411,21 +411,112 @@ describe("Shell", () => {
         sut.eval([{ type: "bin", bin: "echo", args: ["$HOME/sub/folder"] }])
       ).toEqual({
         type: "eval_resp",
-        output: "/home/user/sub/folder",
+        output: "/home/user/sub/folder\n",
         code: 0,
       });
     });
 
-    it("should include var to environment in eval", () => {
+    it("should include var to environment", () => {
       expect(sut.envs.contains("any_name")).toBeFalsy();
       sut.eval([{ type: "var", name: "any_name", value: "any_value" }]);
       expect(sut.envs.contains("any_name")).toBeTruthy();
     });
 
-    it("should include env (export) to environment in eval", () => {
+    it("should eval the value before include var to environment", () => {
+      sut.eval([{ type: "var", name: "any", value: "any_value" }]);
+      expect(sut.envs.contains("foo")).toBeFalsy();
+      sut.eval([{ type: "var", name: "foo", value: "$any" }]);
+      expect(sut.envs.contains("foo")).toBeTruthy();
+      expect(sut.envs.getEnv("foo")).toBe("any_value");
+    });
+
+    it("should include env (export) to environment", () => {
       expect(sut.envs.contains("any_name")).toBeFalsy();
       sut.eval([{ type: "env", name: "any_name", value: "any_value" }]);
       expect(sut.envs.contains("any_name")).toBeTruthy();
+    });
+
+    it("should eval the value before include env to environment", () => {
+      sut.eval([{ type: "env", name: "any", value: "any_value" }]);
+      expect(sut.envs.contains("foo")).toBeFalsy();
+      sut.eval([{ type: "env", name: "foo", value: "$any" }]);
+      expect(sut.envs.contains("foo")).toBeTruthy();
+      expect(sut.envs.getEnv("foo")).toBe("any_value");
+    });
+
+    it("should eval the value considering ; operator", () => {
+      expect(
+        sut.eval([
+          { type: "bin", bin: "echo", args: ["123"] },
+          { type: "op", op: ";" },
+          { type: "bin", bin: "echo", args: ["234"] },
+        ])
+      ).toEqual({
+        type: "eval_resp",
+        code: 0,
+        output: "123\n234\n",
+      });
+
+      expect(
+        sut.eval([
+          { type: "bin", bin: "echo", args: ["123"] },
+          { type: "op", op: ";" },
+        ])
+      ).toEqual({
+        type: "eval_resp",
+        code: 0,
+        output: "123\n",
+      });
+    });
+
+    it("should eval the value considering && operator", () => {
+      expect(
+        sut.eval([
+          { type: "bin", bin: "echo", args: ["123"] },
+          { type: "op", op: "&&" },
+          { type: "bin", bin: "echo", args: ["234"] },
+        ])
+      ).toEqual({
+        type: "eval_resp",
+        code: 0,
+        output: "123\n234\n",
+      });
+    });
+
+    it("should eval the value considering || operator", () => {
+      expect(
+        sut.eval([
+          { type: "bin", bin: "echo", args: ["123"] },
+          { type: "op", op: "||" },
+          { type: "bin", bin: "echo", args: ["234"] },
+        ])
+      ).toEqual({
+        type: "eval_resp",
+        code: 0,
+        output: "123\n",
+      });
+    });
+  });
+
+  describe("Exec", () => {
+    let sut: Shell;
+
+    beforeEach(() => {
+      const echoBin = new Bin("echo", (input: string[]) => ({
+        code: 0,
+        out: `${input[0]}\n`,
+      }));
+      const binSet = new BinSet([echoBin]);
+      sut = new Shell(new Environment(), binSet);
+    });
+
+    it("should exec an input", () => {
+      expect(sut.exec("echo 123; echo 234")).toEqual({
+        path: "",
+        input: "echo 123; echo 234",
+        output: "123\n234\n",
+        code: 0,
+      });
     });
   });
 });

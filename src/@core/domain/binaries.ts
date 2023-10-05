@@ -1,6 +1,6 @@
 type BinResponse = {
   code: number;
-  data: string;
+  out: string;
 };
 
 class Bin {
@@ -16,7 +16,7 @@ interface IBin {
 }
 
 class BinSet {
-  constructor(public bins: Bin[]) {}
+  constructor(public bins: IBin[]) {}
 
   contains(name: string): boolean {
     return this.bins.findIndex((a) => (a.name === name ? true : false)) >= 0;
@@ -27,5 +27,5 @@ class BinSet {
   }
 }
 
-export type { BinResponse };
+export type { BinResponse, IBin };
 export { Bin, BinSet };

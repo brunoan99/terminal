@@ -252,32 +252,44 @@ class Shell {
 
   private eval_var(input: VarChange): void {
     // for simplicity both envs and vars will be storage in same place
-    this.envs.change(input.name, input.value);
+    const value = this.eval_env_string(input.value);
+    this.envs.change(input.name, value);
   }
 
   private eval_env(input: EnvChange): void {
-    this.envs.change(input.name, input.value);
+    const value = this.eval_env_string(input.value);
+    this.envs.change(input.name, value);
   }
 
   eval(input: Parsed): EvalResp {
     let leval: BinResponse = {
       code: 0,
-      data: "",
+      out: "",
     };
+    let output_result = "";
     let last_op: "" | ";" | "|" | "||" | "&&" = "";
     for (let value of input) {
       if (value.type === "bin") {
-        if (last_op === "") leval = this.eval_bin(value);
-        else if (last_op === ";") leval = this.eval_bin(value);
-        else if (last_op === "&&" && leval.code !== 0) continue;
-        else if (last_op === "&&") leval = this.eval_bin(value);
-        else if (last_op === "||" && leval.code === 0) continue;
-        else if (last_op === "||") leval = this.eval_bin(value);
-        else
+        if (last_op === "") {
+          leval = this.eval_bin(value);
+        } else if (last_op === ";") {
+          output_result += leval.out;
+          leval = this.eval_bin(value);
+        } else if (last_op === "&&" && leval.code !== 0) {
+          continue;
+        } else if (last_op === "&&") {
+          output_result += leval.out;
+          leval = this.eval_bin(value);
+        } else if (last_op === "||" && leval.code === 0) {
+          continue;
+        } else if (last_op === "||") {
+          leval = this.eval_bin(value);
+        } else {
           leval = this.eval_bin({
             ...value,
-            args: [...value.args, leval.data],
+            args: [...value.args, leval.out],
           });
+        }
       }
       if (value.type === "var") this.eval_var(value);
       if (value.type === "env") this.eval_env(value);
@@ -285,7 +297,7 @@ class Shell {
     }
     return {
       type: "eval_resp",
-      output: leval.data,
+      output: output_result + leval.out,
       code: leval.code,
     };
   }
@@ -300,12 +312,12 @@ class Shell {
         output: check.left,
         code: 1,
       };
-    const result = this.eval(parsed);
+    const evaluated = this.eval(parsed);
     return {
       path: "",
       input: input,
-      output: "",
-      code: 0,
+      output: evaluated.output,
+      code: evaluated.code,
     };
   }
 }
