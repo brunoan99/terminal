@@ -1,13 +1,13 @@
 import { Bin, BinSet } from "./binaries";
-import { EnvSet, VarSet } from "./environment";
-import { Operator, Shell } from "./shell";
+import { Environment } from "./environment";
+import { Shell } from "./shell";
 
 describe("Shell", () => {
   describe("Split Expressions *Private*", () => {
     let sut: Shell;
 
     beforeAll(() => {
-      sut = new Shell(new EnvSet([]), new VarSet([]), new BinSet([]));
+      sut = new Shell(new Environment(), new BinSet([]));
     });
 
     it("shouldn't return something on empty string", () => {
@@ -127,7 +127,7 @@ describe("Shell", () => {
     let sut: Shell;
 
     beforeAll(() => {
-      sut = new Shell(new EnvSet([]), new VarSet([]), new BinSet([]));
+      sut = new Shell(new Environment(), new BinSet([]));
     });
 
     it("should parse a Operator", () => {
@@ -276,7 +276,7 @@ describe("Shell", () => {
         data: "aopa",
       }));
       const binSet = new BinSet([echoBin]);
-      sut = new Shell(new EnvSet([]), new VarSet([]), binSet);
+      sut = new Shell(new Environment(), binSet);
     });
 
     it("should return no error when check should pass", () => {
@@ -308,6 +308,18 @@ describe("Shell", () => {
           },
         ])
       ).toEqual({ _tag: "Right", right: null });
+    });
+
+    it("should return error when start with operators", () => {
+      expect(
+        sut.check([
+          { type: "op", op: "||" },
+          { type: "bin", bin: "echo", args: ["123"] },
+          { type: "op", op: "&&" },
+          { type: "bin", bin: "echo", args: ["234"] },
+          { type: "op", op: ";" },
+        ])
+      ).toEqual({ _tag: "Left", left: "zsh: parse error near `||'" });
     });
 
     it("should return error when found operators following each other", () => {
@@ -342,6 +354,78 @@ describe("Shell", () => {
           { type: "bin", bin: "other_unexistent", args: [] },
         ])
       ).toEqual({ _tag: "Left", left: "zsh: command not found: unexistent" });
+    });
+
+    it("should return error when some env name contain wrong caracters", () => {
+      expect(
+        sut.check([{ type: "env", name: "aopa|name", value: "any_value" }])
+      ).toEqual({
+        _tag: "Left",
+        left: "export: not valid in this context: aopa|name",
+      });
+      expect(
+        sut.check([{ type: "env", name: "aopa/name", value: "any_value" }])
+      ).toEqual({
+        _tag: "Left",
+        left: "export: not valid in this context: aopa/name",
+      });
+      expect(
+        sut.check([{ type: "env", name: "aopa.name", value: "any_value" }])
+      ).toEqual({
+        _tag: "Left",
+        left: "export: not valid in this context: aopa.name",
+      });
+    });
+  });
+
+  describe("Eval", () => {
+    let sut: Shell;
+
+    beforeEach(() => {
+      const echoBin = new Bin("echo", (input: string[]) => ({
+        code: 0,
+        data: input[0],
+      }));
+      const binSet = new BinSet([echoBin]);
+      sut = new Shell(new Environment(), binSet);
+    });
+
+    it("should process a bin call", () => {
+      expect(sut.eval([{ type: "bin", bin: "echo", args: ["123"] }])).toEqual({
+        type: "eval_resp",
+        output: "123",
+        code: 0,
+      });
+    });
+
+    it("should eval args before bin call", () => {
+      sut.envs.change("HOME", "/home/user");
+      expect(sut.eval([{ type: "bin", bin: "echo", args: ["$HOME"] }])).toEqual(
+        {
+          type: "eval_resp",
+          output: "/home/user",
+          code: 0,
+        }
+      );
+      expect(
+        sut.eval([{ type: "bin", bin: "echo", args: ["$HOME/sub/folder"] }])
+      ).toEqual({
+        type: "eval_resp",
+        output: "/home/user/sub/folder",
+        code: 0,
+      });
+    });
+
+    it("should include var to environment in eval", () => {
+      expect(sut.envs.contains("any_name")).toBeFalsy();
+      sut.eval([{ type: "var", name: "any_name", value: "any_value" }]);
+      expect(sut.envs.contains("any_name")).toBeTruthy();
+    });
+
+    it("should include env (export) to environment in eval", () => {
+      expect(sut.envs.contains("any_name")).toBeFalsy();
+      sut.eval([{ type: "env", name: "any_name", value: "any_value" }]);
+      expect(sut.envs.contains("any_name")).toBeTruthy();
     });
   });
 });

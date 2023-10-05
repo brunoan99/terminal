@@ -10,11 +10,20 @@ class Bin {
   ) {}
 }
 
+interface IBin {
+  name: string;
+  exec(input: string[]): BinResponse;
+}
+
 class BinSet {
   constructor(public bins: Bin[]) {}
 
-  contains(name: string): Bin | undefined {
-    return this.bins.find((a) => (a.name === name ? a : undefined));
+  contains(name: string): boolean {
+    return this.bins.findIndex((a) => (a.name === name ? true : false)) >= 0;
+  }
+
+  getBin(name: string): Bin | undefined {
+    return this.bins.find((a) => (a.name === name ? true : false));
   }
 }
 

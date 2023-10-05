@@ -1,5 +1,5 @@
-import { BinSet, EnvSet, Op } from "@domain";
-import { Var, VarSet } from "./environment";
+import { Bin, BinResponse, BinSet, Op } from "@domain";
+import { Environment } from "./environment";
 import { pipe } from "fp-ts/lib/function";
 import { Option, some as Some, none as None, isSome } from "fp-ts/lib/Option";
 import { Either, left as Left, right as Right, isLeft } from "fp-ts/lib/Either";
@@ -10,8 +10,8 @@ const FirstSomeOnMap = <F, W>(
 ): Option<W> => {
   if (func.length === 0) return None;
   let out = func[0](input);
-  if (isSome(out)) return Some(out.value);
-  else return FirstSomeOnMap(input, func.slice(1));
+  if (isSome(out)) return out;
+  return FirstSomeOnMap(input, func.slice(1));
 };
 
 type RawSplited = (string | string[] | RawSplited)[];
@@ -47,12 +47,14 @@ type Subshell = {
 type Expression = BinCall | VarChange | EnvChange | Operator;
 type Parsed = (Expression | Subshell)[];
 
+type EvalResp = {
+  type: "eval_resp";
+  code: number;
+  output: string;
+};
+
 class Shell {
-  constructor(
-    protected envSet: EnvSet,
-    protected varSet: VarSet,
-    protected binSet: BinSet
-  ) {}
+  constructor(public envs: Environment, public binSet: BinSet) {}
 
   private split_operators(input: string): string[] {
     return input.split(/(?=[|]|[;]|[&]|[(]|[)])|(?<=[|]|[;]|[&]|[(]|[)])/g);
@@ -156,6 +158,12 @@ class Shell {
     return parsed;
   }
 
+  private check_starts_with_operator(input: Parsed): Either<string, null> {
+    return input[0].type === "op"
+      ? Left(`zsh: parse error near \`${input[0].op}'`)
+      : Right(null);
+  }
+
   private check_sequential_operators(input: Parsed): Either<string, null> {
     const seq_op = input.find((value, index, arr) => {
       if (index < arr.length && index > 0)
@@ -172,8 +180,29 @@ class Shell {
     return Right(null);
   }
 
+  private check_env_name(input: string): Either<string, null> {
+    if (input.match(/^[a-zA-Z_]{1,}$[a-zA-Z0-9_]{0,}/)) return Right(null);
+    return Left(`export: not valid in this context: ${input}`);
+  }
+
+  private check_env(input: EnvChange): Either<string, null> {
+    const check_name_res = this.check_env_name(input.name);
+    if (isLeft(check_name_res)) return check_name_res;
+
+    return Right(null);
+  }
+
+  private check_var(input: VarChange): Either<string, null> {
+    const check_name_res = this.check_env_name(input.name);
+    if (isLeft(check_name_res)) return check_name_res;
+
+    return Right(null);
+  }
+
   private check_one(input: Expression | Subshell): Either<string, null> {
     if (input.type === "bin") return this.check_bin(input);
+    if (input.type === "env") return this.check_env(input);
+    if (input.type === "var") return this.check_var(input);
     if (input.type === "subshell") return this.check(input.statements);
     return Right(null);
   }
@@ -187,17 +216,78 @@ class Shell {
   }
 
   check(input: Parsed): Either<string, null> {
-    const check_seq_op = this.check_sequential_operators(input);
-    if (isLeft(check_seq_op)) return check_seq_op;
+    const check_start_res = this.check_starts_with_operator(input);
+    if (isLeft(check_start_res)) return check_start_res;
 
-    const check_every = this.check_every(input);
-    if (isLeft(check_every)) return check_every;
+    const check_seq_res = this.check_sequential_operators(input);
+    if (isLeft(check_seq_res)) return check_seq_res;
+
+    const check_every_res = this.check_every(input);
+    if (isLeft(check_every_res)) return check_every_res;
 
     return Right(null);
   }
 
-  eval(input: Parsed): Op {
-    throw new Error();
+  private eval_env_string(input: string): string {
+    let cloned_input = input;
+    if (input.split("$").length > 1) {
+      let env_name = (
+        input.match(/\$[a-zA-Z_]{1,}[a-zA-Z0-9_]{0,}/) as RegExpMatchArray
+      )[0];
+      let env_value = this.envs.getEnv(env_name.split("").slice(1).join(""));
+      cloned_input = cloned_input.replaceAll(env_name, env_value);
+    }
+    return cloned_input;
+  }
+
+  private eval_args(input: string[]): string[] {
+    return input.map((value) => this.eval_env_string(value));
+  }
+
+  private eval_bin(input: BinCall): BinResponse {
+    const bin = this.binSet.getBin(input.bin);
+    const args = this.eval_args(input.args);
+    return (bin as Bin).exec(args);
+  }
+
+  private eval_var(input: VarChange): void {
+    // for simplicity both envs and vars will be storage in same place
+    this.envs.change(input.name, input.value);
+  }
+
+  private eval_env(input: EnvChange): void {
+    this.envs.change(input.name, input.value);
+  }
+
+  eval(input: Parsed): EvalResp {
+    let leval: BinResponse = {
+      code: 0,
+      data: "",
+    };
+    let last_op: "" | ";" | "|" | "||" | "&&" = "";
+    for (let value of input) {
+      if (value.type === "bin") {
+        if (last_op === "") leval = this.eval_bin(value);
+        else if (last_op === ";") leval = this.eval_bin(value);
+        else if (last_op === "&&" && leval.code !== 0) continue;
+        else if (last_op === "&&") leval = this.eval_bin(value);
+        else if (last_op === "||" && leval.code === 0) continue;
+        else if (last_op === "||") leval = this.eval_bin(value);
+        else
+          leval = this.eval_bin({
+            ...value,
+            args: [...value.args, leval.data],
+          });
+      }
+      if (value.type === "var") this.eval_var(value);
+      if (value.type === "env") this.eval_env(value);
+      if (value.type === "op") last_op = value.op;
+    }
+    return {
+      type: "eval_resp",
+      output: leval.data,
+      code: leval.code,
+    };
   }
 
   exec(input: string): Op {
@@ -211,9 +301,14 @@ class Shell {
         code: 1,
       };
     const result = this.eval(parsed);
-    return result;
+    return {
+      path: "",
+      input: input,
+      output: "",
+      code: 0,
+    };
   }
 }
 
 export { Shell };
-export type { BinCall, EnvChange, Var, Operator, Subshell, Expression };
+export type { BinCall, EnvChange, VarChange, Operator, Subshell, Expression };
