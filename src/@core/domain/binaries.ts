@@ -3,7 +3,7 @@ type BinResponse = {
   out: string;
 };
 
-class Bin {
+class Bin implements IBin {
   constructor(
     public name: string,
     public exec: (input: string[]) => BinResponse

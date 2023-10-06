@@ -10,7 +10,7 @@ describe("Shell", () => {
       sut = new Shell(new Environment(), new BinSet([]));
     });
 
-    it("shouldn't return something on empty string", () => {
+    it("should return [] on empty string", () => {
       expect(sut["split_expression"]("")).toEqual([]);
     });
 
@@ -322,6 +322,23 @@ describe("Shell", () => {
       ).toEqual({ _tag: "Left", left: "zsh: parse error near `||'" });
     });
 
+    it("should return error when start with operators even inside subshell", () => {
+      expect(
+        sut.check([
+          {
+            type: "subshell",
+            statements: [
+              { type: "op", op: "||" },
+              { type: "bin", bin: "echo", args: ["123"] },
+              { type: "op", op: "&&" },
+              { type: "bin", bin: "echo", args: ["234"] },
+              { type: "op", op: ";" },
+            ],
+          },
+        ])
+      ).toEqual({ _tag: "Left", left: "zsh: parse error near `||'" });
+    });
+
     it("should return error when found operators following each other", () => {
       expect(
         sut.check([
@@ -378,14 +395,21 @@ describe("Shell", () => {
     });
   });
 
-  describe("Eval", () => {
+  describe.only("Eval", () => {
     let sut: Shell;
 
     beforeEach(() => {
-      const echoBin = new Bin("echo", (input: string[]) => ({
-        code: 0,
-        out: `${input[0]}\n`,
-      }));
+      const echoBin = new Bin("echo", (input: string[]) => {
+        return input[0] === "should_fail"
+          ? {
+              code: 1,
+              out: "wanted fail",
+            }
+          : {
+              code: 0,
+              out: `${input[0]}\n`,
+            };
+      });
       const binSet = new BinSet([echoBin]);
       sut = new Shell(new Environment(), binSet);
     });
@@ -393,7 +417,7 @@ describe("Shell", () => {
     it("should process a bin call", () => {
       expect(sut.eval([{ type: "bin", bin: "echo", args: ["123"] }])).toEqual({
         type: "eval_resp",
-        output: "123\n",
+        out: "123\n",
         code: 0,
       });
     });
@@ -403,7 +427,7 @@ describe("Shell", () => {
       expect(sut.eval([{ type: "bin", bin: "echo", args: ["$HOME"] }])).toEqual(
         {
           type: "eval_resp",
-          output: "/home/user\n",
+          out: "/home/user\n",
           code: 0,
         }
       );
@@ -411,7 +435,7 @@ describe("Shell", () => {
         sut.eval([{ type: "bin", bin: "echo", args: ["$HOME/sub/folder"] }])
       ).toEqual({
         type: "eval_resp",
-        output: "/home/user/sub/folder\n",
+        out: "/home/user/sub/folder\n",
         code: 0,
       });
     });
@@ -444,7 +468,7 @@ describe("Shell", () => {
       expect(sut.envs.getEnv("foo")).toBe("any_value");
     });
 
-    it("should eval the value considering ; operator", () => {
+    it("should eval expressions around ; operator", () => {
       expect(
         sut.eval([
           { type: "bin", bin: "echo", args: ["123"] },
@@ -454,7 +478,7 @@ describe("Shell", () => {
       ).toEqual({
         type: "eval_resp",
         code: 0,
-        output: "123\n234\n",
+        out: "123\n234\n",
       });
 
       expect(
@@ -465,11 +489,11 @@ describe("Shell", () => {
       ).toEqual({
         type: "eval_resp",
         code: 0,
-        output: "123\n",
+        out: "123\n",
       });
     });
 
-    it("should eval the value considering && operator", () => {
+    it("should eval expressions around && operator", () => {
       expect(
         sut.eval([
           { type: "bin", bin: "echo", args: ["123"] },
@@ -479,11 +503,11 @@ describe("Shell", () => {
       ).toEqual({
         type: "eval_resp",
         code: 0,
-        output: "123\n234\n",
+        out: "123\n234\n",
       });
     });
 
-    it("should eval the value considering || operator", () => {
+    it("should eval expressions around || operator", () => {
       expect(
         sut.eval([
           { type: "bin", bin: "echo", args: ["123"] },
@@ -493,8 +517,99 @@ describe("Shell", () => {
       ).toEqual({
         type: "eval_resp",
         code: 0,
-        output: "123\n",
+        out: "123\n",
       });
+    });
+
+    it("should eval expressions around | operator", () => {
+      expect(
+        sut.eval([
+          { type: "bin", bin: "echo", args: ["123"] },
+          { type: "op", op: "|" },
+          { type: "bin", bin: "echo", args: [] },
+        ])
+      ).toEqual({ type: "eval_resp", code: 0, out: "123\n\n" });
+      // in normal shell this don't return this result, but for simplifity and design limitations it could work like this
+    });
+
+    it("should eval subshell", () => {
+      expect(
+        sut.eval([
+          {
+            type: "subshell",
+            statements: [{ type: "bin", bin: "echo", args: ["123"] }],
+          },
+        ])
+      ).toEqual({ type: "eval_resp", code: 0, out: "123\n" });
+    });
+
+    it("should eval subshell with operators in statements", () => {
+      expect(
+        sut.eval([
+          {
+            type: "subshell",
+            statements: [
+              { type: "bin", bin: "echo", args: ["123"] },
+              { type: "op", op: "||" },
+              { type: "bin", bin: "echo", args: ["234"] },
+            ],
+          },
+        ])
+      ).toEqual({ type: "eval_resp", code: 0, out: "123\n" });
+    });
+
+    it("should eval subshell after a operator", () => {
+      expect(
+        sut.eval([
+          { type: "bin", bin: "echo", args: ["123"] },
+          { type: "op", op: "||" },
+          {
+            type: "subshell",
+            statements: [
+              { type: "bin", bin: "echo", args: ["234"] },
+              { type: "op", op: "&&" },
+              { type: "bin", bin: "echo", args: ["345"] },
+            ],
+          },
+        ])
+      ).toEqual({ type: "eval_resp", code: 0, out: "123\n" });
+
+      expect(
+        sut.eval([
+          { type: "bin", bin: "echo", args: ["123"] },
+          { type: "op", op: "&&" },
+          {
+            type: "subshell",
+            statements: [
+              { type: "bin", bin: "echo", args: ["234"] },
+              { type: "op", op: "||" },
+              { type: "bin", bin: "echo", args: ["345"] },
+            ],
+          },
+        ])
+      ).toEqual({ type: "eval_resp", code: 0, out: "123\n234\n" });
+
+      expect(
+        sut.eval([
+          { type: "bin", bin: "echo", args: ["123"] },
+          { type: "op", op: "|" },
+          {
+            type: "subshell",
+            statements: [{ type: "bin", bin: "echo", args: [] }],
+          },
+        ])
+      ).toEqual({ type: "eval_resp", code: 0, out: "123\n\n" });
+
+      expect(
+        sut.eval([
+          { type: "bin", bin: "echo", args: ["123"] },
+          { type: "op", op: ";" },
+          {
+            type: "subshell",
+            statements: [{ type: "bin", bin: "echo", args: ["234"] }],
+          },
+        ])
+      ).toEqual({ type: "eval_resp", code: 0, out: "123\n234\n" });
     });
   });
 

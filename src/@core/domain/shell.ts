@@ -50,7 +50,7 @@ type Parsed = (Expression | Subshell)[];
 type EvalResp = {
   type: "eval_resp";
   code: number;
-  output: string;
+  out: string;
 };
 
 class Shell {
@@ -244,10 +244,73 @@ class Shell {
     return input.map((value) => this.eval_env_string(value));
   }
 
-  private eval_bin(input: BinCall): BinResponse {
+  private eval_bin_aux(input: BinCall): EvalResp {
     const bin = this.binSet.getBin(input.bin);
     const args = this.eval_args(input.args);
-    return (bin as Bin).exec(args);
+    const bin_out = (bin as Bin).exec(args);
+    return {
+      type: "eval_resp",
+      code: bin_out.code,
+      out: bin_out.out,
+    };
+  }
+
+  private eval_bin(
+    input: BinCall,
+    leval: BinResponse,
+    last_op: "" | ";" | "|" | "||" | "&&"
+  ): [EvalResp, string] | undefined {
+    if (last_op === "") {
+      return [this.eval_bin_aux(input), ""];
+    } else if (last_op === ";") {
+      const to_append = leval.out;
+      return [this.eval_bin_aux(input), to_append];
+    } else if (last_op === "&&" && leval.code !== 0) {
+      return;
+    } else if (last_op === "&&") {
+      const to_append = leval.out;
+      return [this.eval_bin_aux(input), to_append];
+    } else if (last_op === "||" && leval.code === 0) {
+      return;
+    } else if (last_op === "||") {
+      return [this.eval_bin_aux(input), ""];
+    }
+    return [
+      this.eval_bin_aux({
+        ...input,
+        args: [...input.args, leval.out],
+      }),
+      "",
+    ];
+  }
+
+  private eval_subshell_aux(input: Subshell): EvalResp {
+    return this.eval(input.statements);
+  }
+
+  private eval_subshell(
+    input: Subshell,
+    leval: EvalResp,
+    last_op: "" | ";" | "|" | "||" | "&&"
+  ): [EvalResp, string] | undefined {
+    if (last_op === "") {
+      return [this.eval_subshell_aux(input), ""];
+    } else if (last_op === ";") {
+      const to_append = leval.out;
+      return [this.eval_subshell_aux(input), to_append];
+    } else if (last_op === "&&" && leval.code !== 0) {
+      return;
+    } else if (last_op === "&&") {
+      const to_append = leval.out;
+      return [this.eval_subshell_aux(input), to_append];
+    } else if (last_op === "||" && leval.code === 0) {
+      return;
+    } else if (last_op === "||") {
+      return [this.eval_subshell_aux(input), ""];
+    }
+    if (input.statements[0].type === "bin")
+      input.statements[0].args = [...input.statements[0].args, leval.out];
+    return [this.eval_subshell_aux(input), ""];
   }
 
   private eval_var(input: VarChange): void {
@@ -257,12 +320,14 @@ class Shell {
   }
 
   private eval_env(input: EnvChange): void {
+    // for simplicity both envs and vars will be storage in same place
     const value = this.eval_env_string(input.value);
     this.envs.change(input.name, value);
   }
 
   eval(input: Parsed): EvalResp {
-    let leval: BinResponse = {
+    let leval: EvalResp = {
+      type: "eval_resp",
       code: 0,
       out: "",
     };
@@ -270,34 +335,30 @@ class Shell {
     let last_op: "" | ";" | "|" | "||" | "&&" = "";
     for (let value of input) {
       if (value.type === "bin") {
-        if (last_op === "") {
-          leval = this.eval_bin(value);
-        } else if (last_op === ";") {
-          output_result += leval.out;
-          leval = this.eval_bin(value);
-        } else if (last_op === "&&" && leval.code !== 0) {
-          continue;
-        } else if (last_op === "&&") {
-          output_result += leval.out;
-          leval = this.eval_bin(value);
-        } else if (last_op === "||" && leval.code === 0) {
-          continue;
-        } else if (last_op === "||") {
-          leval = this.eval_bin(value);
-        } else {
-          leval = this.eval_bin({
-            ...value,
-            args: [...value.args, leval.out],
-          });
+        const out = this.eval_bin(value, leval, last_op);
+        if (out !== undefined) {
+          let [to_leval, to_out] = out;
+          leval = to_leval;
+          output_result += to_out;
         }
+      } else if (value.type === "subshell") {
+        const out = this.eval_subshell(value, leval, last_op);
+        if (out !== undefined) {
+          let [to_leval, to_out] = out;
+          leval = to_leval;
+          output_result += to_out;
+        }
+      } else if (value.type === "var") {
+        this.eval_var(value);
+      } else if (value.type === "env") {
+        this.eval_env(value);
+      } else if (value.type === "op") {
+        last_op = value.op;
       }
-      if (value.type === "var") this.eval_var(value);
-      if (value.type === "env") this.eval_env(value);
-      if (value.type === "op") last_op = value.op;
     }
     return {
       type: "eval_resp",
-      output: output_result + leval.out,
+      out: output_result + leval.out,
       code: leval.code,
     };
   }
@@ -316,7 +377,7 @@ class Shell {
     return {
       path: "",
       input: input,
-      output: evaluated.output,
+      output: evaluated.out,
       code: evaluated.code,
     };
   }
