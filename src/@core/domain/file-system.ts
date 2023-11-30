@@ -8,11 +8,12 @@ type FileType = {
 
 const newFile = (
   name: string,
-  body: string | undefined,): FileType => ({
-    name,
-    body,
-    type: "file"
-  })
+  body: string | undefined = undefined
+): FileType => ({
+  name,
+  body,
+  type: "file"
+})
 
 type FolderType = {
   name: string,
@@ -23,10 +24,11 @@ type FolderType = {
 
 const newFolder = (
   name: string,
-  parent?: FolderType,
+  parent: FolderType | undefined = undefined,
   childs: (FileType | FolderType)[] = [],
 ): FolderType => ({
   name,
+
   childs,
   parent,
   type: "folder"
@@ -51,51 +53,50 @@ class FileSystem {
 
   constructor() {
     this.root = newFolder("/");
-    this.current = this.root
+    this.current = this.root;
   }
 
-
-
   get currentPath(): string {
-    throw new Error("method not implemented yet")
+    throw new Error("method not implemented yet");
   }
 
   changeCurrentDirectory(path: string): Either<string, null> {
-    return Left("method not implemented yet")
+    return Left("method not implemented yet");
   }
 
-  private createDirectoryAbsolute(path: string, parents: boolean): Either<string, null> {
-    return Left("method not implemented yet")
-  }
-
-  private createDirectoryRelative(path: string, parents: boolean): Either<string, null> {
-    if (path.split("/").length < 2) {
-      createDirectoryOn(this.current, path);
-      return Right(null);
+  createDirectory(path: string, parents: boolean = false): Either<string, null> {
+    let pathSplited = path.split("/");
+    let currentNav: FolderType;
+    if (path.startsWith("/")) {
+      currentNav = this.root;
+      pathSplited.shift(); // when split left side of '/' becomes '' in array
+    } else {
+      currentNav = this.current;
     }
 
-    let pathSplited = path.split("/");
-    let currentNav: FolderType = this.current;
     while (pathSplited) {
       let toFind = pathSplited[0];
       let child = currentNav.childs.find((c) => c.name == toFind);
 
-      if (child && child.type == "file") {
-        // exists and its a file
+      if (child && pathSplited.length === 1) {
+        // exists in the place of folder to be created and its a file
+        return Left(`cannot create directory ‘${path}’: File exists`);
+      } else if (child && child.type == "file") {
+        // exists in the middle of the path to folder to be created and its a file
         return Left(`cannot create directory ‘${path}’: Not a directory`);
       } else if (child) {
         // exists and its a folder
         currentNav = child;
         pathSplited.shift();
         continue;
-      } else if (child == undefined && pathSplited.length == 1) {
+      } else if (typeof child === "undefined" && pathSplited.length == 1) {
         // not exists and needs to be created cause its folder
         createDirectoryOn(currentNav, toFind);
         return Right(null);
-      } else if (child == undefined && parents) {
+      } else if (typeof child === "undefined" && parents) {
         // not exists and needs to be created cause parents option on
-        let newC = createDirectoryOn(currentNav, toFind);
-        currentNav = newC;
+        let newChild = createDirectoryOn(currentNav, toFind);
+        currentNav = newChild;
         pathSplited.shift();
         continue;
       } else {
@@ -107,16 +108,11 @@ class FileSystem {
     return Left(`cannot create directory ‘${path}’: File exists`);
   }
 
-  createDirectory(path: string, parents: boolean = false): Either<string, null> {
-    if (path.startsWith("/")) return this.createDirectoryAbsolute(path, parents);
-    return this.createDirectoryRelative(path, parents);
-  }
-
   findDirectory(path: string): Either<string, FolderType> {
     return Left("method not implemented yet")
   }
 
-  listDirectoryContent(path: string): Either<string, FolderType> {
+  listDirectoryContent(path: string): Either<string, (FileType | FolderType)[]> {
     return Left("method not implemented yet")
   }
 
