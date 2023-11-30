@@ -395,7 +395,7 @@ describe("Shell", () => {
     });
   });
 
-  describe.only("Eval", () => {
+  describe("Eval", () => {
     let sut: Shell;
 
     beforeEach(() => {
@@ -617,20 +617,44 @@ describe("Shell", () => {
     let sut: Shell;
 
     beforeEach(() => {
-      const echoBin = new Bin("echo", (input: string[]) => ({
-        code: 0,
-        out: `${input[0]}\n`,
-      }));
+      const echoBin = new Bin("echo", (input: string[]) => {
+        return input[0] === "should_fail"
+          ? {
+              code: 1,
+              out: "wanted fail",
+            }
+          : {
+              code: 0,
+              out: `${input[0]}\n`,
+            };
+      });
       const binSet = new BinSet([echoBin]);
       sut = new Shell(new Environment(), binSet);
     });
 
     it("should exec an input", () => {
       expect(sut.exec("echo 123; echo 234")).toEqual({
-        path: "",
+        code: 0,
         input: "echo 123; echo 234",
         output: "123\n234\n",
+      });
+
+      expect(sut.exec("echo 123; (echo 234)")).toEqual({
         code: 0,
+        input: "echo 123; (echo 234)",
+        output: "123\n234\n",
+      });
+
+      expect(sut.exec("echo 123; (echo 234)")).toEqual({
+        code: 0,
+        input: "echo 123; (echo 234)",
+        output: "123\n234\n",
+      });
+
+      expect(sut.exec("echo 123 || (echo 234)")).toEqual({
+        code: 0,
+        input: "echo 123 || (echo 234)",
+        output: "123\n",
       });
     });
   });

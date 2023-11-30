@@ -53,8 +53,14 @@ type EvalResp = {
   out: string;
 };
 
+type ShellOp = {
+  code: number;
+  input: string;
+  output: string;
+};
+
 class Shell {
-  constructor(public envs: Environment, public binSet: BinSet) {}
+  constructor(public envs: Environment, public binSet: BinSet) { }
 
   private split_operators(input: string): string[] {
     return input.split(/(?=[|]|[;]|[&]|[(]|[)])|(?<=[|]|[;]|[&]|[(]|[)])/g);
@@ -363,19 +369,17 @@ class Shell {
     };
   }
 
-  exec(input: string): Op {
+  exec(input: string): ShellOp {
     const parsed = this.parse(input);
     const check = this.check(parsed);
     if (isLeft(check))
       return {
-        path: "",
         input: input,
         output: check.left,
         code: 1,
       };
     const evaluated = this.eval(parsed);
     return {
-      path: "",
       input: input,
       output: evaluated.out,
       code: evaluated.code,
