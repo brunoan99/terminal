@@ -109,22 +109,53 @@ class FileSystem {
   }
 
   findDirectory(path: string): Either<string, FolderType> {
-    return Left("method not implemented yet")
+    let pathSplited = path.split("/");
+    let currentNav: FolderType;
+    if (path.startsWith("/")) {
+      currentNav = this.root;
+      pathSplited.shift(); // when split left side of '/' becomes '' in array
+    } else {
+      currentNav = this.current;
+    }
+
+    while (pathSplited) {
+      let toFind = pathSplited[0];
+      let child = currentNav.childs.find((c) => c.name == toFind);
+
+      if (child?.type == "folder" && pathSplited.length === 1) {
+        // exists in place and must be returned
+        return Right(child);
+      } else if (child?.type == "folder") {
+        // exists in the middle of the path to folder to be find
+        currentNav = child;
+        pathSplited.shift();
+        continue;
+      } else if (child?.type == "file") {
+        // exists in path to folder to be find and its a file
+        return Left(`not a directory: ${path}`);
+      } else {
+        return Left(`no such file or directory: ${path}`);
+      }
+    }
+    return Left(`no such file or directory: ${path}`);
   }
 
   listDirectoryContent(path: string): Either<string, (FileType | FolderType)[]> {
-    return Left("method not implemented yet")
+    let folderOp = this.findDirectory(path)
+    if (isLeft(folderOp)) return folderOp;
+    let folder = folderOp.right;
+    return Right(folder.childs);
   }
 
   removeDirectory(path: string): Either<string, null> {
     return Left("method not implemented yet")
   }
 
-  insertFile(path: string, content: string): Either<string, null> {
+  createFile(path: string, content: string): Either<string, null> {
     return Left("method not implemented yet")
   }
 
-  readFile(path: string): Either<string, string> {
+  findFile(path: string): Either<string, string> {
     return Left("method not implemented yet")
   }
 

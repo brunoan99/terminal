@@ -1,4 +1,4 @@
-import { left as Left, right as Right, } from "fp-ts/lib/Either";
+import { left as Left, right as Right, isRight, } from "fp-ts/lib/Either";
 import { FileSystem, FileType, FolderType, newFile, newFolder } from "./file-system";
 
 describe("File System", () => {
@@ -103,7 +103,71 @@ describe("File System", () => {
     })
   })
 
-  describe("findDirectory", () => { })
+  describe("findDirectory", () => {
+    let sut: FileSystem;
+
+    beforeEach(() => {
+      sut = new FileSystem();
+    });
+
+    it("should find directory in relative path", () => {
+      sut.createDirectory("/any/other/folder", true);
+      let newCurrent = sut.root.childs[0];
+      if (newCurrent.type == "file") expect(false).toBe(true);
+      else sut.current = newCurrent;
+
+      let op = sut.findDirectory("other/folder")
+      expect(isRight(op)).toBe(true);
+      let folder = isRight(op) ? op.right : undefined;
+      expect(folder?.name).toBe("folder");
+    })
+
+    it("should find directory in absolute path", () => {
+      sut.createDirectory("/any/other/folder", true);
+
+      let newCurrent = sut.current.childs[0];
+      if (newCurrent.type == "file") expect(false).toBe(true);
+      else sut.current = newCurrent; // current -> any
+
+      newCurrent = sut.current.childs[0];
+      if (newCurrent.type == "file") expect(false).toBe(true);
+      else sut.current = newCurrent; // current -> other
+
+      newCurrent = sut.current.childs[0];
+      if (newCurrent.type == "file") expect(false).toBe(true);
+      else sut.current = newCurrent; // current -> folder
+
+      let op = sut.findDirectory("/any/other")
+      expect(isRight(op)).toBe(true);
+      let folder = isRight(op) ? op.right : undefined;
+      expect(folder?.name).toBe("other");
+    })
+
+    it("should return error when folder don't exists", () => {
+      sut.createDirectory("/any/other/folder", true);
+
+      let op = sut.findDirectory("/any/other/structure");
+      expect(op).toEqual(Left("no such file or directory: /any/other/structure"));
+    })
+
+    it("should return error when file exists in place", () => {
+      sut.createDirectory("/any/other", true);
+
+      let newCurrent = sut.current.childs[0];
+      if (newCurrent.type == "file") expect(false).toBe(true);
+      else sut.current = newCurrent; // current -> any
+
+      newCurrent = sut.current.childs[0];
+      if (newCurrent.type == "file") expect(false).toBe(true);
+      else sut.current = newCurrent; // current -> other
+
+      const f1 = newFile("folder");
+      sut.current.childs.push(f1);
+
+      let op = sut.findDirectory("/any/other/folder");
+      expect(op).toEqual(Left("not a directory: /any/other/folder"));
+    })
+  })
 
   describe("listDirectoryContent", () => { })
 
