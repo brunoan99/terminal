@@ -1,4 +1,4 @@
-import { left as Left, right as Right, isRight, } from "fp-ts/lib/Either";
+import { left as Left, right as Right, isLeft, isRight, } from "fp-ts/lib/Either";
 import { FileSystem, FileType, FolderType, newFile, newFolder } from "./file-system";
 
 describe("File System", () => {
@@ -101,6 +101,37 @@ describe("File System", () => {
       expect(current.childs[0]).toEqual(f1);
       expect(root.childs[0]).toEqual(f1);
     })
+
+    it("should return error when try to create a folder with name '.'", () => {
+      let op = sut.createDirectory("/any/.", true);
+      expect(op).toEqual(Left("cannot create directory ‘/any/.’: File exists"));
+    })
+
+    it("should consider '.' when inserting", () => {
+      let op = sut.createDirectory("./foo", true);
+      expect(op).toEqual(Right(null));
+      let root = sut.root;
+      let f1 = root.childs[0];
+      expect(f1.name).toBe("foo");
+    })
+
+    it("should consider '..' when inserting", () => {
+      sut.createDirectory("/any/other/folder", true);
+
+      let newCurrent = sut.current.childs[0];
+      if (newCurrent.type == "file") expect(false).toBe(true);
+      else sut.current = newCurrent; // current -> any
+
+      newCurrent = sut.current.childs[0];
+      if (newCurrent.type == "file") expect(false).toBe(true);
+      else sut.current = newCurrent; // current -> other
+
+      let op = sut.createDirectory("../../any2");
+      expect(op).toEqual(Right(null));
+      expect(sut.root.childs[0].name).toBe("any");
+      expect(sut.root.childs[1].name).toBe("any2");
+
+    })
   })
 
   describe("findDirectory", () => {
@@ -169,7 +200,42 @@ describe("File System", () => {
     })
   })
 
-  describe("listDirectoryContent", () => { })
+  describe("listDirectoryContent", () => {
+    let sut: FileSystem;
+
+    beforeEach(() => {
+      sut = new FileSystem();
+    });
+
+    it("should return the directory child when found", () => {
+      sut.createDirectory("any");
+
+      let newCurrent = sut.current.childs[0];
+      if (newCurrent.type == "file") expect(false).toBe(true);
+      else sut.current = newCurrent; // current -> any
+
+      let f1 = newFile("file1");
+      sut.current.childs.push(f1);
+      let f2 = newFile("file2");
+      sut.current.childs.push(f2);
+      let f3 = newFile("file3");
+      sut.current.childs.push(f3);
+      let f4 = newFile("file4");
+      sut.current.childs.push(f4);
+
+      let op = sut.listDirectoryContent("/any");
+      expect(isRight(op)).toBe(true);
+      let list = isRight(op) ? op.right : undefined;
+      expect(list).toEqual([f1, f2, f3, f4]);
+
+    })
+
+    it("should return an error when directory not found", () => {
+      let op = sut.listDirectoryContent("/any");
+      expect(isLeft(op)).toBe(true);
+    })
+
+  })
 
   describe("removeDirectory", () => { })
 

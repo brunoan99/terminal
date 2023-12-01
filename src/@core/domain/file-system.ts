@@ -76,6 +76,19 @@ class FileSystem {
 
     while (pathSplited) {
       let toFind = pathSplited[0];
+      if (toFind === "." && pathSplited.length === 1) {
+        // '.' is always existent
+        return Left(`cannot create directory ‘${path}’: File exists`);
+      } else if (toFind === ".") {
+        pathSplited.shift();
+        continue
+      }
+      if (toFind === "..") {
+        // '..' represents parent folder
+        currentNav = currentNav.parent || this.root;
+        pathSplited.shift();
+        continue;
+      }
       let child = currentNav.childs.find((c) => c.name == toFind);
 
       if (child && pathSplited.length === 1) {
@@ -109,6 +122,9 @@ class FileSystem {
   }
 
   findDirectory(path: string): Either<string, FolderType> {
+    if (path === ".") return Right(this.current);
+    if (path === "..") return Right(this.current.parent || this.root);
+
     let pathSplited = path.split("/");
     let currentNav: FolderType;
     if (path.startsWith("/")) {
@@ -120,7 +136,9 @@ class FileSystem {
 
     while (pathSplited) {
       let toFind = pathSplited[0];
-      let child = currentNav.childs.find((c) => c.name == toFind);
+      let child: FileType | FolderType | undefined;
+
+      child = currentNav.childs.find((c) => c.name == toFind);
 
       if (child?.type == "folder" && pathSplited.length === 1) {
         // exists in place and must be returned
@@ -141,9 +159,9 @@ class FileSystem {
   }
 
   listDirectoryContent(path: string): Either<string, (FileType | FolderType)[]> {
-    let folderOp = this.findDirectory(path)
-    if (isLeft(folderOp)) return folderOp;
-    let folder = folderOp.right;
+    let findOp = this.findDirectory(path)
+    if (isLeft(findOp)) return findOp;
+    let folder = findOp.right;
     return Right(folder.childs);
   }
 
