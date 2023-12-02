@@ -3,6 +3,7 @@ import { Environment } from "./environment";
 import { pipe } from "fp-ts/lib/function";
 import { Option, some as Some, none as None, isSome } from "fp-ts/lib/Option";
 import { Either, left as Left, right as Right, isLeft } from "fp-ts/lib/Either";
+import { FileSystem } from "./file-system";
 
 const FirstSomeOnMap = <F, W>(
   input: F,
@@ -60,7 +61,7 @@ type ShellOp = {
 };
 
 class Shell {
-  constructor(public envs: Environment, public binSet: BinSet) { }
+  constructor(public envs: Environment, public binSet: BinSet, public fileSystem: FileSystem) { }
 
   private split_operators(input: string): string[] {
     return input.split(/(?=[|]|[;]|[&]|[(]|[)])|(?<=[|]|[;]|[&]|[(]|[)])/g);
@@ -253,7 +254,7 @@ class Shell {
   private eval_bin_aux(input: BinCall): EvalResp {
     const bin = this.binSet.getBin(input.bin);
     const args = this.eval_args(input.args);
-    const bin_out = (bin as Bin).exec(args);
+    const bin_out = (bin as Bin).exec(args, this.fileSystem);
     return {
       type: "eval_resp",
       code: bin_out.code,

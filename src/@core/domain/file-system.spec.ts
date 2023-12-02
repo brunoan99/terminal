@@ -43,27 +43,6 @@ describe("File System", () => {
       expect(root.childs).toEqual([f1]);
     })
 
-    it("should return error when file exists with same name", () => {
-      let file: FileType = newFile("any");
-      sut.current.childs.push(file);
-      let op = sut.createDirectory("any")
-      expect(op).toEqual(Left("cannot create directory ‘any’: File exists"));
-    })
-
-    it("should return error when folder exists with same name", () => {
-      let folder: FolderType = newFolder("any");
-      sut.current.childs.push(folder);
-      let op = sut.createDirectory("any", false)
-      expect(op).toEqual(Left("cannot create directory ‘any’: File exists"));
-    })
-
-    it("should return error when file exists in path", () => {
-      let file: FileType = newFile("any");
-      sut.current.childs.push(file);
-      let op = sut.createDirectory("any/other/folder")
-      expect(op).toEqual(Left("cannot create directory ‘any/other/folder’: Not a directory"));
-    })
-
     it("should insert it and parents in relative path", () => {
       let op = sut.createDirectory("any/other/folder", true);
       expect(op).toEqual(Right(null));
@@ -102,11 +81,6 @@ describe("File System", () => {
       expect(root.childs[0]).toEqual(f1);
     })
 
-    it("should return error when try to create a folder with name '.'", () => {
-      let op = sut.createDirectory("/any/.", true);
-      expect(op).toEqual(Left("cannot create directory ‘/any/.’: File exists"));
-    })
-
     it("should consider '.' when inserting", () => {
       let op = sut.createDirectory("./foo", true);
       expect(op).toEqual(Right(null));
@@ -130,7 +104,32 @@ describe("File System", () => {
       expect(op).toEqual(Right(null));
       expect(sut.root.childs[0].name).toBe("any");
       expect(sut.root.childs[1].name).toBe("any2");
+    })
 
+    it("should return error when try to create a folder with name '.'", () => {
+      let op = sut.createDirectory("/any/.", true);
+      expect(op).toEqual(Left("cannot create directory ‘/any/.’: File exists"));
+    })
+
+    it("should return error when file exists with same name", () => {
+      let file: FileType = newFile("any", sut.current);
+      sut.current.childs.push(file);
+      let op = sut.createDirectory("any")
+      expect(op).toEqual(Left("cannot create directory ‘any’: File exists"));
+    })
+
+    it("should return error when folder exists with same name", () => {
+      let folder: FolderType = newFolder("any");
+      sut.current.childs.push(folder);
+      let op = sut.createDirectory("any", false)
+      expect(op).toEqual(Left("cannot create directory ‘any’: File exists"));
+    })
+
+    it("should return error when file exists in path", () => {
+      let file: FileType = newFile("any", sut.current);
+      sut.current.childs.push(file);
+      let op = sut.createDirectory("any/other/folder")
+      expect(op).toEqual(Left("cannot create directory ‘any/other/folder’: Not a directory"));
     })
   })
 
@@ -174,6 +173,42 @@ describe("File System", () => {
       expect(folder?.name).toBe("other");
     })
 
+    it("should consider '.' when finding", () => {
+      sut.createDirectory("/foo/any", true);
+
+      let op = sut.findDirectory("/foo/./any")
+      expect(isRight(op)).toBe(true);
+      let folder = isRight(op) ? op.right : undefined;
+      expect(folder?.name).toBe("any")
+    })
+
+    it("should consider '.' in ending when finding", () => {
+      sut.createDirectory("/foo/any", true);
+
+      let op = sut.findDirectory("/foo/.")
+      expect(isRight(op)).toBe(true);
+      let folder = isRight(op) ? op.right : undefined;
+      expect(folder?.name).toBe("foo")
+    })
+
+    it("should consider '..' when finding", () => {
+      sut.createDirectory("/foo/any", true);
+
+      let op = sut.findDirectory("/foo/../foo/any")
+      expect(isRight(op)).toBe(true);
+      let folder = isRight(op) ? op.right : undefined;
+      expect(folder?.name).toBe("any")
+    })
+
+    it("should consider '..' in ending when finding", () => {
+      sut.createDirectory("/foo/any", true);
+
+      let op = sut.findDirectory("/foo/any/..")
+      expect(isRight(op)).toBe(true);
+      let folder = isRight(op) ? op.right : undefined;
+      expect(folder?.name).toBe("foo")
+    })
+
     it("should return error when folder don't exists", () => {
       sut.createDirectory("/any/other/folder", true);
 
@@ -192,7 +227,7 @@ describe("File System", () => {
       if (newCurrent.type == "file") expect(false).toBe(true);
       else sut.current = newCurrent; // current -> other
 
-      const f1 = newFile("folder");
+      const f1 = newFile("folder", sut.current);
       sut.current.childs.push(f1);
 
       let op = sut.findDirectory("/any/other/folder");
@@ -214,13 +249,13 @@ describe("File System", () => {
       if (newCurrent.type == "file") expect(false).toBe(true);
       else sut.current = newCurrent; // current -> any
 
-      let f1 = newFile("file1");
+      let f1 = newFile("file1", sut.current);
       sut.current.childs.push(f1);
-      let f2 = newFile("file2");
+      let f2 = newFile("file2", sut.current);
       sut.current.childs.push(f2);
-      let f3 = newFile("file3");
+      let f3 = newFile("file3", sut.current);
       sut.current.childs.push(f3);
-      let f4 = newFile("file4");
+      let f4 = newFile("file4", sut.current);
       sut.current.childs.push(f4);
 
       let op = sut.listDirectoryContent("/any");
@@ -230,18 +265,26 @@ describe("File System", () => {
 
     })
 
-    it("should return an error when directory not found", () => {
+    it("should return error provided by find", () => {
       let op = sut.listDirectoryContent("/any");
       expect(isLeft(op)).toBe(true);
     })
-
   })
-
-  describe("removeDirectory", () => { })
 
   describe("insertFile", () => { })
 
   describe("readFile", () => { })
 
-  describe("removeFile", () => { })
+  describe("remove", () => {
+    let sut: FileSystem;
+
+    beforeEach(() => {
+      sut = new FileSystem();
+    });
+
+    it("should return error when try to remove root", () => {
+
+    })
+
+  })
 })
