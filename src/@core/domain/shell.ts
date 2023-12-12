@@ -3,7 +3,7 @@ import { Environment } from "./environment";
 import { pipe } from "fp-ts/lib/function";
 import { Option, some as Some, none as None, isSome } from "fp-ts/lib/Option";
 import { Either, left as Left, right as Right, isLeft } from "fp-ts/lib/Either";
-import { FileSystem } from "./file-system";
+import { MemoryFileSystem } from "./file-system";
 
 const FirstSomeOnMap = <F, W>(
   input: F,
@@ -61,7 +61,7 @@ type ShellOp = {
 };
 
 class Shell {
-  constructor(public envs: Environment, public binSet: BinSet, public fileSystem: FileSystem) { }
+  constructor(public envs: Environment, public binSet: BinSet, public fileSystem: MemoryFileSystem) { }
 
   private split_operators(input: string): string[] {
     return input.split(/(?=[|]|[;]|[&]|[(]|[)])|(?<=[|]|[;]|[&]|[(]|[)])/g);

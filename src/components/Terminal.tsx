@@ -2,8 +2,9 @@
 
 import "public/assets/css/Terminal.css";
 import { Op } from "../@core/domain/operation";
-import { Term } from "@domain";
-import { useState } from "react";
+import { ShellContext } from "../contexts/shell-provider";
+import { useContext } from "react";
+import Script from "next/script";
 
 const OutputResult = ({ result }: { result: string }) => (
   <span className="text-zinc-100">{result}</span>
@@ -36,60 +37,46 @@ const Symbol = ({ failed }: { failed?: boolean }) =>
     <span className="text-[16px] text-[#50FA7B]">λ&nbsp;</span>
   );
 
-const BufferField = ({
-  value,
-  handleValueChange,
-}: {
-  value: string;
-  handleValueChange: (value: string) => void;
-}) => (
-  <input
-    className="bg-[#282A36] text-white"
-    value={'echo "test"'}
-    onChange={(e) => {}}
-  />
-);
 
-const InputLine = ({ path = "~" }: { path?: string }) => (
+const InputLine = ({ path = "~", value = "", handleValueChange, handleSubmit }: { path?: string, value?: string, handleValueChange: (value: string) => void, handleSubmit: () => void }) => (
   <>
+    <Script src="assets/scripts/textarea.js"/>
+
     <PathLine path={path} />
-    <div>
+    <div className="w-max-[100%] flex">
       <Symbol />
-      <BufferField
-        value={'echo "test"'}
-        handleValueChange={(value: string) => {}}
+      <textarea
+        id="text-area-buffer"
+        cols={75}
+        className="bg-[#282A36] text-white grow outline-none flex-wrap break-words resize-none"
+        value={value}
+
+        onChange={(e) => handleValueChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.code === "Enter") {
+            handleSubmit()
+          }
+        } }
       />
     </div>
   </>
 );
 
 const Terminal = () => {
-  const operations = [
-    {
-      path: "~/workspace/js/blog",
-      input: "git l 10",
-      output:
-        "fatal: not a git repository (or any of the parent directories): .git",
-      code: 1,
-    },
-    {
-      path: "~/workspace/js/blog",
-      input: 'echo "test"',
-      output: "test",
-      code: 0,
-    },
-  ];
-  const [term, setTerm] = useState<Term>({
-    actual_path: "~",
-    ops: operations,
-    buffer: "",
-  });
+  const { ops, path, buffer, setBuffer, exec } = useContext(ShellContext);
 
   return (
-    <div className="terminal flex flex-col p-[10px] w-[805px] h-[604px] bg-[#282A36] opacity-[0.98] border-[#D6345B] border-[2.5px] font-mono">
-      <OutputLines outputs={operations} />
-      <InputLine path={term.actual_path} />
-    </div>
+      <div className="terminal flex flex-col p-[10px] w-[805px] h-[604px] bg-[#282A36] opacity-[0.98] border-[#D6345B] border-[2.5px] font-mono">
+        <OutputLines
+          outputs={ops}
+        />
+        <InputLine
+          path={path}
+          value={buffer}
+          handleValueChange={setBuffer}
+          handleSubmit={exec}
+        />
+      </div>
   );
 };
 

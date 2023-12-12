@@ -1,12 +1,12 @@
 import { left as Left, right as Right, isLeft, isRight, } from "fp-ts/lib/Either";
-import { FileSystem, FileType, FolderType, newFile, newFolder } from "./file-system";
+import { MemoryFileSystem, FileType, FolderType, newFile, newFolder } from "./file-system";
 
 describe("File System", () => {
   describe("init", () => {
-    let sut: FileSystem;
+    let sut: MemoryFileSystem;
 
     beforeEach(() => {
-      sut = new FileSystem();
+      sut = new MemoryFileSystem();
     });
 
     it("should contain root", () => {
@@ -24,10 +24,10 @@ describe("File System", () => {
   })
 
   describe("createDirectory", () => {
-    let sut: FileSystem;
+    let sut: MemoryFileSystem;
 
     beforeEach(() => {
-      sut = new FileSystem();
+      sut = new MemoryFileSystem();
     });
 
     it("should insert it in relative path", () => {
@@ -134,10 +134,10 @@ describe("File System", () => {
   })
 
   describe("findDirectory", () => {
-    let sut: FileSystem;
+    let sut: MemoryFileSystem;
 
     beforeEach(() => {
-      sut = new FileSystem();
+      sut = new MemoryFileSystem();
     });
 
     it("should find directory in relative path", () => {
@@ -236,10 +236,10 @@ describe("File System", () => {
   })
 
   describe("listDirectoryContent", () => {
-    let sut: FileSystem;
+    let sut: MemoryFileSystem;
 
     beforeEach(() => {
-      sut = new FileSystem();
+      sut = new MemoryFileSystem();
     });
 
     it("should return the directory child when found", () => {
@@ -271,19 +271,43 @@ describe("File System", () => {
     })
   })
 
-  describe("insertFile", () => { })
-
-  describe("readFile", () => { })
-
   describe("remove", () => {
-    let sut: FileSystem;
+    let sut: MemoryFileSystem;
 
     beforeEach(() => {
-      sut = new FileSystem();
+      sut = new MemoryFileSystem();
     });
 
     it("should return error when try to remove root", () => {
 
+    })
+
+  })
+
+  describe("getCurrentPath", () => {
+    let sut: MemoryFileSystem;
+
+    beforeEach(() => {
+      sut = new MemoryFileSystem();
+    });
+
+    it("should return string of path", () => {
+      sut.createDirectory("/any/other/folder", true);
+
+      let newCurrent = sut.current.childs[0];
+      if (newCurrent.type == "file") expect(false).toBe(true);
+      else sut.current = newCurrent; // current -> any
+
+      newCurrent = sut.current.childs[0];
+      if (newCurrent.type == "file") expect(false).toBe(true);
+      else sut.current = newCurrent; // current -> other
+
+      newCurrent = sut.current.childs[0];
+      if (newCurrent.type == "file") expect(false).toBe(true);
+      else sut.current = newCurrent; // current -> folder
+
+      let path = sut.currentPath;
+      expect(path).toBe("/any/other/folder")
     })
 
   })

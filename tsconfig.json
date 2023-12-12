@@ -19,7 +19,7 @@
       }
     ],
     "paths": {
-      "@pages": ["./src/pages-components"],
+      "@pages": ["src/layouts"],
       "@components": ["./src/components"],
       "@domain": ["./src/@core/domain"]
     }

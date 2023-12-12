@@ -1,4 +1,4 @@
-import { Either, left as Left, right as Right, isLeft, isRight } from "fp-ts/lib/Either";
+import { Either, left as Left, right as Right, isLeft } from "fp-ts/lib/Either";
 
 type FileType = {
   name: string,
@@ -56,7 +56,7 @@ const createFileOn = (parent: FolderType, name: string, content?: string) => {
   parent.childs.sort(sortStruct)
 }
 
-class FileSystem {
+class MemoryFileSystem {
   root: FolderType;
   current: FolderType;
 
@@ -66,7 +66,14 @@ class FileSystem {
   }
 
   get currentPath(): string {
-    throw new Error("method not implemented yet");
+    let current = this.current;
+    let path = "";
+    while (current.name != "/") {
+      let oldPath = path == "" ? path : "/" + path;
+      path = current.name + oldPath;
+      current = current.parent || this.root;
+    }
+    return "/" + path;
   }
 
   changeCurrentDirectory(path: string): Either<string, null> {
@@ -331,7 +338,7 @@ class FileSystem {
   }
 }
 
-export { FileSystem, newFile, newFolder }
+export { MemoryFileSystem, newFile, newFolder }
 export type { FileType, FolderType }
 
 /*
