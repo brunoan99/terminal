@@ -1,7 +1,7 @@
 import { left as Left, right as Right, isLeft, isRight, } from "fp-ts/lib/Either";
 import { MemoryFileSystem, FileType, FolderType, newFile, newFolder } from "./file-system";
 
-describe("File System", () => {
+describe("Memory File System", () => {
   describe("init", () => {
     let sut: MemoryFileSystem;
 

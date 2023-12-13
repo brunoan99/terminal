@@ -1,6 +1,6 @@
 export { Shell } from "./shell";
 
-export { Env, EnvSet } from "./environment";
+export type { Env, EnvSet } from "./environment";
 
 export { Bin, BinSet } from "./binaries";
 

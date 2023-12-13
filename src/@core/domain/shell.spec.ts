@@ -1,5 +1,6 @@
-import { Bin, BinSet } from "./binaries";
+import { Bin, Binaries } from "./binaries";
 import { Environment } from "./environment";
+import { MemoryFileSystem } from "./file-system";
 import { Shell } from "./shell";
 
 describe("Shell", () => {
@@ -7,7 +8,7 @@ describe("Shell", () => {
     let sut: Shell;
 
     beforeAll(() => {
-      sut = new Shell(new Environment(), new BinSet([]));
+      sut = new Shell(new Environment(), new Binaries(), new MemoryFileSystem());
     });
 
     it("should return [] on empty string", () => {
@@ -127,7 +128,7 @@ describe("Shell", () => {
     let sut: Shell;
 
     beforeAll(() => {
-      sut = new Shell(new Environment(), new BinSet([]));
+      sut = new Shell(new Environment(), new Binaries(), new MemoryFileSystem());
     });
 
     it("should parse a Operator", () => {
@@ -271,12 +272,16 @@ describe("Shell", () => {
     let sut: Shell;
 
     beforeAll(() => {
-      const echoBin = new Bin("echo", (input: string[]) => ({
-        code: 0,
-        out: "aopa",
-      }));
-      const binSet = new BinSet([echoBin]);
-      sut = new Shell(new Environment(), binSet);
+      const echoBin = {
+        name: "echo",
+        exec: (input: string[], fileSystem: MemoryFileSystem) => ({
+          code: 0,
+          out: "",
+        })
+      };
+      const binaries = new Binaries();
+      binaries.insert(echoBin)
+      sut = new Shell(new Environment(), binaries, new MemoryFileSystem());
     });
 
     it("should return no error when check should pass", () => {
@@ -399,19 +404,23 @@ describe("Shell", () => {
     let sut: Shell;
 
     beforeEach(() => {
-      const echoBin = new Bin("echo", (input: string[]) => {
-        return input[0] === "should_fail"
-          ? {
+      const echoBin = {
+        name: "echo",
+        exec: (input: string[], fileSystem: MemoryFileSystem) => {
+          return input[0] === "should_fail"
+            ? {
               code: 1,
               out: "wanted fail",
             }
-          : {
+            : {
               code: 0,
               out: `${input[0]}\n`,
             };
-      });
-      const binSet = new BinSet([echoBin]);
-      sut = new Shell(new Environment(), binSet);
+        }
+      };
+      const binaries = new Binaries();
+      binaries.insert(echoBin)
+      sut = new Shell(new Environment(), binaries, new MemoryFileSystem());
     });
 
     it("should process a bin call", () => {
@@ -617,19 +626,23 @@ describe("Shell", () => {
     let sut: Shell;
 
     beforeEach(() => {
-      const echoBin = new Bin("echo", (input: string[]) => {
-        return input[0] === "should_fail"
-          ? {
+      const echoBin = {
+        name: "echo",
+        exec: (input: string[], fileSystem: MemoryFileSystem) => {
+          return input[0] === "should_fail"
+            ? {
               code: 1,
               out: "wanted fail",
             }
-          : {
+            : {
               code: 0,
               out: `${input[0]}\n`,
             };
-      });
-      const binSet = new BinSet([echoBin]);
-      sut = new Shell(new Environment(), binSet);
+        }
+      };
+      const binaries = new Binaries();
+      binaries.insert(echoBin)
+      sut = new Shell(new Environment(), binaries, new MemoryFileSystem());
     });
 
     it("should exec an input", () => {
