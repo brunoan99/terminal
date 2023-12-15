@@ -1,3 +1,11 @@
 .terminal *::selection {
   background-color: #44475A;
 }
+
+.terminal::-webkit-scrollbar {
+  display: none;
+}
+.terminal {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}

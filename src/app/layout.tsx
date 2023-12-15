@@ -1,14 +1,17 @@
 import { ShellProvider } from "../contexts/shell-provider";
 import "./globals.css";
 import type { Metadata } from "next";
-// import { Inter } from "next/font/google";
-
-// const inter = Inter({ subsets: ["latin"] });
+import localFont from "next/font/local"
 
 export const metadata: Metadata = {
   title: "Terminal",
   description: "Github navigation in terminal",
 };
+
+const jetBrainsFont = localFont({
+  src: "../../public/assets/fonts/JetBrainsMonoNLNerdFont-Regular.ttf",
+  display: "auto",
+})
 
 export default function RootLayout({
   children,
@@ -21,7 +24,7 @@ export default function RootLayout({
         <link rel="icon" href="/assets/images/favicon.ico" />
       </head>
 
-      <body>
+      <body className={jetBrainsFont.className}>
         <ShellProvider>
           {children}
         </ShellProvider>

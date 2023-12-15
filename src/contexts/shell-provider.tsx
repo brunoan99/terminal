@@ -1,15 +1,14 @@
 "use client"
 
 import { createContext, useState } from "react";
-import { Op } from "../@core/domain/operation";
-import { Shell } from "../@core/domain/shell";
+import { Shell, ShellOp } from "../@core/domain/shell";
 import { Environment } from "../@core/domain/environment";
 import { Binaries } from "../@core/domain/binaries";
 import { MemoryFileSystem } from "../@core/domain/file-system";
 import { LsBin } from "../@core/data/binaries/ls";
 
 type ShellContextType = {
-  ops: Op[]
+  ops: ShellOp[]
   path: string,
   buffer: string,
   setBuffer: (value: string) => void,
@@ -20,8 +19,8 @@ const defaultContext: ShellContextType = {
   ops: [],
   path: "~",
   buffer: "",
-  setBuffer: (value: string) => {},
-  exec: () => {},
+  setBuffer: (value: string) => { },
+  exec: () => { },
 }
 
 const ShellContext = createContext<ShellContextType>(defaultContext);
@@ -105,26 +104,26 @@ const memorySystem = (): MemoryFileSystem => {
   return file_system;
 }
 
-const ShellProvider = ({children}: {children: React.ReactNode}) => {
+const ShellProvider = ({ children }: { children: React.ReactNode }) => {
   let env = environment();
   let bins = binaries();
   let file_system = memorySystem();
-  let shell = new Shell(env, bins, file_system)
-  let [ops, setOps] = useState<Op[]>([]);
+  let [ops] = useState<ShellOp[]>([]);
+  let shell = new Shell(env, bins, file_system, ops)
   let [buffer, setBuffer] = useState<string>("");
+  // let [inputs, setInputs] = useState<string[]>([]);
 
   const exec = () => {
     let input = buffer;
-    let path = file_system.currentPath;
+    if (!input) return
+    // setInputs([...inputs, input]);
     setBuffer("");
-    let shellOp = shell.exec(input);
-    let op = {
-      path,
-      ...shellOp,
-    }
-    console.log("Result: ", op);
-    setOps([...ops, op]);
+    let op = shell.exec(input);
+    // console.log("Result: ", op);
+    // console.log("Inputs :  %o", inputs);
+    // console.log("Outputs: %o", ops);
   }
+
 
   return (
     <ShellContext.Provider

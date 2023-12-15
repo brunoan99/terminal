@@ -1,39 +1,34 @@
 "use client";
 
 import "public/assets/css/Terminal.css";
-import { Op } from "../@core/domain/operation";
+import { ShellOp } from "../@core/domain/shell";
 import { ShellContext } from "../contexts/shell-provider";
-import { useContext } from "react";
+import { useContext, useEffect } from "react";
 import Script from "next/script";
 
 const PathLine = ({ path }: { path: string }) => (
-  <span className="text-[16px] text-[#8BE9FD]">{path.padEnd(80, " ")}</span>
+  <span className="text-[16px] text-[#8BE9FD]">{path}</span>
 );
 
 const InputLabel = ({ input }: { input: string }) => (
   <div className="flex flex-row flex-wrap text-white">
     <span className="text-[16px] text-[#50FA7B]">λ{' '}</span>
-    <span>{input.padEnd(78)}</span>
+    <span>{input}</span>
   </div>
 );
 
 const OutputResult = ({ result }: { result: string }) => (
-  <div className="overflow-hidden break-words">
-    <span className="text-zinc-100 block w-[80ch]">
-      {result
-        .split("\n")
-        .map((line) => line.padEnd(80))
-        .join("\n")}
-    </span>
-    <span className="text-zinc-100 block w-[80ch]">{' '.padEnd(80, " ")}</span>
+  <div className="overflow-x-hidden break-words text-[16px]">
+    <span className="text-zinc-100 block w-[80ch]">{result}</span>
+    <span className="text-zinc-100 block w-[80ch]">{' '}</span>
   </div>
 );
 
-const OutputLines = ({ outputs }: { outputs: Array<Op> }) =>
-  outputs.map((o: Op, index: number) => (
+const OutputLines = ({ outputs }: { outputs: Array<ShellOp> }) =>
+  outputs.map((o: ShellOp, index: number) => (
     <div key={index}>
-      <PathLine path={o.path} />
-      <InputLabel input={o.input} />
+      {o.path ? <PathLine path={o.path} /> : <></>}
+      {o.input ? <InputLabel input={o.input} /> : <></>}
       <OutputResult result={o.output} />
     </div>
   ));
@@ -46,10 +41,9 @@ const Symbol = ({ failed }: { failed?: boolean }) =>
     <span className="text-[16px] text-[#50FA7B]">λ&nbsp;</span>
   );
 
-
 const InputLine = ({ path = "~", value = "", handleValueChange, handleSubmit }: { path?: string, value?: string, handleValueChange: (value: string) => void, handleSubmit: () => void }) => (
   <div>
-    <Script src="assets/scripts/textarea.js"/>
+    <Script src="assets/scripts/textarea.js" />
     <PathLine path={path} />
     <div className="w-max-[100%] flex">
       <Symbol />
@@ -62,10 +56,11 @@ const InputLine = ({ path = "~", value = "", handleValueChange, handleSubmit }: 
         value={value}
         onChange={(e) => handleValueChange(e.target.value)}
         onKeyDown={(e) => {
-          if (e.code === "Enter") {
-            e.preventDefault()
-            handleSubmit()
-          } } }
+          if (["Enter", "NumpadEnter"].includes(e.code)) {
+            e.preventDefault();
+            handleSubmit();
+          }
+        }}
       />
     </div>
   </div>
@@ -75,7 +70,9 @@ const Terminal = () => {
   const { ops, path, buffer, setBuffer, exec } = useContext(ShellContext);
 
   return (
-    <div className="terminal flex flex-col p-[10px] w-[805px] h-[604px] bg-[#282A36] opacity-[0.98] border-[#D6345B] border-[2.5px] font-mono whitespace-pre overflow-y-hidden">
+    <div id="terminal" className="terminal flex flex-col p-[10px] w-[805px] h-[604px] bg-[#282A36] opacity-[0.98] border-[#D6345B] border-[2.5px] whitespace-pre overflow-y-scroll leading-relaxed select-auto"
+      onContextMenu={(e) => e.preventDefault()}
+    >
       <OutputLines
         outputs={ops}
       />
