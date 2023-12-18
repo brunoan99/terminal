@@ -111,17 +111,12 @@ const ShellProvider = ({ children }: { children: React.ReactNode }) => {
   let [ops] = useState<ShellOp[]>([]);
   let shell = new Shell(env, bins, file_system, ops)
   let [buffer, setBuffer] = useState<string>("");
-  // let [inputs, setInputs] = useState<string[]>([]);
 
   const exec = () => {
     let input = buffer;
-    if (!input) return
-    // setInputs([...inputs, input]);
     setBuffer("");
-    let op = shell.exec(input);
-    // console.log("Result: ", op);
-    // console.log("Inputs :  %o", inputs);
-    // console.log("Outputs: %o", ops);
+    if (!input || input == '\n') return;
+    shell.exec(input);
   }
 
 
