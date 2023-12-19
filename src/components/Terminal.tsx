@@ -20,7 +20,6 @@ const InputLabel = ({ input }: { input: string }) => (
 const OutputResult = ({ result }: { result: string }) => (
   <div className="overflow-x-hidden break-words text-[16px]">
     <span className="text-zinc-100 block w-[80ch]">{result}</span>
-    <span className="text-zinc-100 block w-[80ch]">{' '}</span>
   </div>
 );
 

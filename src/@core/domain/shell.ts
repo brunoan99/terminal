@@ -420,12 +420,13 @@ class Shell {
   }
 
   exec(input: string): ShellOp {
+    let path = this.fileSystem.currentPath;
     const parsed = this.parse(input);
     const check = this.check(parsed);
     let op;
     if (isLeft(check)) {
       op = {
-        path: this.fileSystem.currentPath,
+        path,
         input: input,
         output: check.left,
         code: 1,
@@ -433,7 +434,7 @@ class Shell {
     } else {
       const evaluated = this.eval(parsed);
       op = {
-        path: this.fileSystem.currentPath,
+        path,
         input: input,
         output: evaluated.out,
         code: evaluated.code,

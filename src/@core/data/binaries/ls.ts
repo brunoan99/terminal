@@ -43,23 +43,27 @@ class LsBin implements Bin {
   }
 
   public exec(input: string[], fileSystem: MemoryFileSystem): BinResponse {
-    let path = input[0];
+    /* options
+      -1, --oneline           display one entry per line
+      -l, --long              display extended file metadata as a table
+      -a, --all               show hidden and 'dot' files. Use this twice to also show the '.' and '..' directories
+    */
+    let path = input.filter((value) => !(value.startsWith('-') || value.startsWith('--')))[0]
     if (!path) path = ".";
-
     let op = fileSystem.listDirectoryContent(path);
     if (isLeft(op)) return {
       code: 1,
-      out: op.left,
+      out: `"ls": ${op.left}`,
     }
-
     let contents = op.right;
     const names = contents
       .map((value) => value.name);
+
     let lines = this.arrange_names_in_lines(names);
     let out = lines.join("\n");
 
     return {
-      code: 1,
+      code: 0,
       out: out,
     }
   }
