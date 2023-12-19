@@ -1,8 +1,10 @@
-import { Bin, BinResponse, BinSet, Op } from "@domain";
+import { Bin, BinResponse } from "@domain";
 import { Environment } from "./environment";
 import { pipe } from "fp-ts/lib/function";
 import { Option, some as Some, none as None, isSome } from "fp-ts/lib/Option";
 import { Either, left as Left, right as Right, isLeft } from "fp-ts/lib/Either";
+import { MemoryFileSystem } from "./file-system";
+import { Binaries } from "./binaries";
 
 const FirstSomeOnMap = <F, W>(
   input: F,
@@ -54,13 +56,21 @@ type EvalResp = {
 };
 
 type ShellOp = {
+  path: string;
   code: number;
   input: string;
   output: string;
 };
 
 class Shell {
-  constructor(public envs: Environment, public binSet: BinSet) { }
+  private just_cleared: boolean = false;
+  private contain_clear: boolean = false;
+  constructor(
+    public envs: Environment,
+    public binSet: Binaries,
+    public fileSystem: MemoryFileSystem,
+    public ops: ShellOp[]
+  ) { }
 
   private split_operators(input: string): string[] {
     return input.split(/(?=[|]|[;]|[&]|[(]|[)])|(?<=[|]|[;]|[&]|[(]|[)])/g);
@@ -181,6 +191,7 @@ class Shell {
   }
 
   private check_bin(input: BinCall): Either<string, null> {
+    if (input.bin === "clear") return Right(null);
     if (!this.binSet.contains(input.bin))
       return Left(`zsh: command not found: ${input.bin}`);
     return Right(null);
@@ -250,10 +261,25 @@ class Shell {
     return input.map((value) => this.eval_env_string(value));
   }
 
+  private eval_bin_clear() {
+    this.ops.length = 0;
+    this.just_cleared = true;
+    this.contain_clear = true;
+  }
+
   private eval_bin_aux(input: BinCall): EvalResp {
+    if (input.bin === "clear") {
+      this.eval_bin_clear();
+      return {
+        type: "eval_resp",
+        code: 1,
+        out: "",
+      };
+    }
+    this.just_cleared = false;
     const bin = this.binSet.getBin(input.bin);
     const args = this.eval_args(input.args);
-    const bin_out = (bin as Bin).exec(args);
+    const bin_out = (bin as Bin).exec(args, this.fileSystem);
     return {
       type: "eval_resp",
       code: bin_out.code,
@@ -265,29 +291,44 @@ class Shell {
     input: BinCall,
     leval: BinResponse,
     last_op: "" | ";" | "|" | "||" | "&&"
-  ): [EvalResp, string] | undefined {
+  ): EvalResp | undefined {
     if (last_op === "") {
-      return [this.eval_bin_aux(input), ""];
+      return this.eval_bin_aux(input);
     } else if (last_op === ";") {
-      const to_append = leval.out;
-      return [this.eval_bin_aux(input), to_append];
+      const op = this.eval_bin_aux(input);
+      let append_prev = leval.out ? leval.out + "\n" : "";
+      if (this.just_cleared) {
+        append_prev = "";
+      }
+      const out = append_prev + op.out;
+      return {
+        type: "eval_resp",
+        code: op.code,
+        out: out,
+      }
     } else if (last_op === "&&" && leval.code !== 0) {
       return;
     } else if (last_op === "&&") {
-      const to_append = leval.out;
-      return [this.eval_bin_aux(input), to_append];
+      const op = this.eval_bin_aux(input);
+      let append_prev = leval.out ? leval.out + "\n" : "";
+      if (this.just_cleared) {
+        append_prev = "";
+      }
+      const out = append_prev + op.out;
+      return {
+        type: "eval_resp",
+        code: op.code,
+        out: out,
+      }
     } else if (last_op === "||" && leval.code === 0) {
       return;
     } else if (last_op === "||") {
-      return [this.eval_bin_aux(input), ""];
+      return this.eval_bin_aux(input);
     }
-    return [
-      this.eval_bin_aux({
-        ...input,
-        args: [...input.args, leval.out],
-      }),
-      "",
-    ];
+    return this.eval_bin_aux({
+      ...input,
+      args: [...input.args, leval.out],
+    });
   }
 
   private eval_subshell_aux(input: Subshell): EvalResp {
@@ -298,25 +339,43 @@ class Shell {
     input: Subshell,
     leval: EvalResp,
     last_op: "" | ";" | "|" | "||" | "&&"
-  ): [EvalResp, string] | undefined {
+  ): EvalResp | undefined {
     if (last_op === "") {
-      return [this.eval_subshell_aux(input), ""];
+      return this.eval_subshell_aux(input);
     } else if (last_op === ";") {
-      const to_append = leval.out;
-      return [this.eval_subshell_aux(input), to_append];
+      const op = this.eval_subshell_aux(input)
+      let append_prev = leval.out ? leval.out + "\n" : "";
+      if (this.just_cleared) {
+        append_prev = "";
+      }
+      const out = append_prev + op.out
+      return {
+        type: "eval_resp",
+        code: op.code,
+        out: out,
+      }
     } else if (last_op === "&&" && leval.code !== 0) {
       return;
     } else if (last_op === "&&") {
-      const to_append = leval.out;
-      return [this.eval_subshell_aux(input), to_append];
+      const op = this.eval_subshell_aux(input)
+      let append_prev = leval.out ? leval.out + "\n" : "";
+      if (this.just_cleared) {
+        append_prev = "";
+      }
+      const out = append_prev + op.out
+      return {
+        type: "eval_resp",
+        code: op.code,
+        out: out,
+      }
     } else if (last_op === "||" && leval.code === 0) {
       return;
     } else if (last_op === "||") {
-      return [this.eval_subshell_aux(input), ""];
+      return this.eval_subshell_aux(input);
     }
     if (input.statements[0].type === "bin")
       input.statements[0].args = [...input.statements[0].args, leval.out];
-    return [this.eval_subshell_aux(input), ""];
+    return this.eval_subshell_aux(input);
   }
 
   private eval_var(input: VarChange): void {
@@ -337,22 +396,17 @@ class Shell {
       code: 0,
       out: "",
     };
-    let output_result = "";
     let last_op: "" | ";" | "|" | "||" | "&&" = "";
     for (let value of input) {
       if (value.type === "bin") {
         const out = this.eval_bin(value, leval, last_op);
         if (out !== undefined) {
-          let [to_leval, to_out] = out;
-          leval = to_leval;
-          output_result += to_out;
+          leval = out;
         }
       } else if (value.type === "subshell") {
         const out = this.eval_subshell(value, leval, last_op);
         if (out !== undefined) {
-          let [to_leval, to_out] = out;
-          leval = to_leval;
-          output_result += to_out;
+          leval = out;
         }
       } else if (value.type === "var") {
         this.eval_var(value);
@@ -362,30 +416,43 @@ class Shell {
         last_op = value.op;
       }
     }
-    return {
-      type: "eval_resp",
-      out: output_result + leval.out,
-      code: leval.code,
-    };
+    return leval;
   }
 
   exec(input: string): ShellOp {
+    let path = this.fileSystem.currentPath;
     const parsed = this.parse(input);
     const check = this.check(parsed);
-    if (isLeft(check))
-      return {
+    let op;
+    if (isLeft(check)) {
+      op = {
+        path,
         input: input,
         output: check.left,
         code: 1,
       };
-    const evaluated = this.eval(parsed);
-    return {
-      input: input,
-      output: evaluated.out,
-      code: evaluated.code,
-    };
+    } else {
+      const evaluated = this.eval(parsed);
+      op = {
+        path,
+        input: input,
+        output: evaluated.out,
+        code: evaluated.code,
+      };
+    }
+    if (!this.just_cleared) {
+      this.ops.push(op);
+    } else {
+      this.just_cleared = false;
+    }
+    if (this.contain_clear) {
+      op.input = "";
+      op.path = "";
+      this.contain_clear = false;
+    }
+    return op;
   }
 }
 
 export { Shell };
-export type { BinCall, EnvChange, VarChange, Operator, Subshell, Expression };
+export type { BinCall, EnvChange, VarChange, Operator, Subshell, Expression, ShellOp };

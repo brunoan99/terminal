@@ -1,31 +1,32 @@
+import { MemoryFileSystem } from "./file-system";
+
 type BinResponse = {
   code: number;
   out: string;
 };
 
-class Bin implements IBin {
-  constructor(
-    public name: string,
-    public exec: (input: string[]) => BinResponse
-  ) {}
-}
-
-interface IBin {
+interface Bin {
   name: string;
-  exec(input: string[]): BinResponse;
+  exec(input: string[], fileSystem: MemoryFileSystem): BinResponse;
 }
 
-class BinSet {
-  constructor(public bins: IBin[]) {}
+type BinSet = { [key: string]: Bin }
+
+class Binaries {
+  public binSet: BinSet = {}
+
+  insert(bin: Bin) {
+    this.binSet[bin.name] = bin;
+  }
 
   contains(name: string): boolean {
-    return this.bins.findIndex((a) => (a.name === name ? true : false)) >= 0;
+    return this.binSet[name] !== undefined;
   }
 
   getBin(name: string): Bin | undefined {
-    return this.bins.find((a) => (a.name === name ? true : false));
+    return this.binSet[name];
   }
 }
 
-export type { BinResponse, IBin };
-export { Bin, BinSet };
+export type { BinResponse, Bin, BinSet };
+export { Binaries };
