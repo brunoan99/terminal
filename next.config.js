@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  swcMinify: false,
+  experimental : {
+    instrumentationHook: true
+  }
 };
 
-module.exports = nextConfig;
+module.exports = () => {
+  return nextConfig
+};
