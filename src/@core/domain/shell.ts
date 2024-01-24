@@ -70,7 +70,7 @@ class Shell {
     public binSet: Binaries,
     public fileSystem: MemoryFileSystem,
     public ops: ShellOp[]
-  ) { }
+  ) {}
 
   private split_operators(input: string): string[] {
     return input.split(/(?=[|]|[;]|[&]|[(]|[)])|(?<=[|]|[;]|[&]|[(]|[)])/g);
@@ -305,7 +305,7 @@ class Shell {
         type: "eval_resp",
         code: op.code,
         out: out,
-      }
+      };
     } else if (last_op === "&&" && leval.code !== 0) {
       return;
     } else if (last_op === "&&") {
@@ -319,7 +319,7 @@ class Shell {
         type: "eval_resp",
         code: op.code,
         out: out,
-      }
+      };
     } else if (last_op === "||" && leval.code === 0) {
       return;
     } else if (last_op === "||") {
@@ -343,31 +343,31 @@ class Shell {
     if (last_op === "") {
       return this.eval_subshell_aux(input);
     } else if (last_op === ";") {
-      const op = this.eval_subshell_aux(input)
+      const op = this.eval_subshell_aux(input);
       let append_prev = leval.out ? leval.out + "\n" : "";
       if (this.just_cleared) {
         append_prev = "";
       }
-      const out = append_prev + op.out
+      const out = append_prev + op.out;
       return {
         type: "eval_resp",
         code: op.code,
         out: out,
-      }
+      };
     } else if (last_op === "&&" && leval.code !== 0) {
       return;
     } else if (last_op === "&&") {
-      const op = this.eval_subshell_aux(input)
+      const op = this.eval_subshell_aux(input);
       let append_prev = leval.out ? leval.out + "\n" : "";
       if (this.just_cleared) {
         append_prev = "";
       }
-      const out = append_prev + op.out
+      const out = append_prev + op.out;
       return {
         type: "eval_resp",
         code: op.code,
         out: out,
-      }
+      };
     } else if (last_op === "||" && leval.code === 0) {
       return;
     } else if (last_op === "||") {
@@ -455,4 +455,12 @@ class Shell {
 }
 
 export { Shell };
-export type { BinCall, EnvChange, VarChange, Operator, Subshell, Expression, ShellOp };
+export type {
+  BinCall,
+  EnvChange,
+  VarChange,
+  Operator,
+  Subshell,
+  Expression,
+  ShellOp,
+};

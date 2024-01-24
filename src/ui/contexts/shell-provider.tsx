@@ -1,17 +1,17 @@
 "use client"
 
 import { createContext, useMemo, useState } from "react";
-import { Shell, ShellOp } from "../@core/domain/shell";
-import { Environment } from "../@core/domain/environment";
-import { Binaries } from "../@core/domain/binaries";
-import { MemoryFileSystem } from "../@core/domain/file-system";
-import { LsBin } from "../@core/data/binaries/ls";
-import { CdBin } from "../@core/data/binaries/cd";
-import { CatBin } from "../@core/data/binaries/cat";
-import { EchoBin } from "../@core/data/binaries/echo";
-import { PwdBin } from "../@core/data/binaries/pwd";
-import { TouchBin } from "../@core/data/binaries/touch";
-import { MkdirBin } from "../@core/data/binaries/mkdir";
+import { Shell, ShellOp } from "../../@core/domain/shell";
+import { Environment } from "../../@core/domain/environment";
+import { Binaries } from "../../@core/domain/binaries";
+import { MemoryFileSystem } from "../../@core/domain/file-system";
+import { LsBin } from "../../@core/data/binaries/ls";
+import { CdBin } from "../../@core/data/binaries/cd";
+import { CatBin } from "../../@core/data/binaries/cat";
+import { EchoBin } from "../../@core/data/binaries/echo";
+import { PwdBin } from "../../@core/data/binaries/pwd";
+import { TouchBin } from "../../@core/data/binaries/touch";
+import { MkdirBin } from "../../@core/data/binaries/mkdir";
 
 type ShellContextType = {
   ops: ShellOp[]

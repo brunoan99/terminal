@@ -1,7 +1,7 @@
 "use client";
 
 import "@public/assets/css/Terminal.css";
-import { ShellOp } from "../@core/domain/shell";
+import { ShellOp } from "@domain";
 import { ShellContext } from "../contexts/shell-provider";
 import { useContext } from "react";
 import Script from "next/script";

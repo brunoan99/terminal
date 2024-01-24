@@ -19,8 +19,8 @@
       }
     ],
     "paths": {
-      "@layouts": ["./src/layouts"],
-      "@components": ["./src/components"],
+      "@layouts": ["./src/ui/layouts"],
+      "@components": ["./src/ui/components"],
       "@domain": ["./src/@core/domain"],
       "@public/*": ["./public/*"]
     }
