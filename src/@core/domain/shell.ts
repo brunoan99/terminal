@@ -344,10 +344,7 @@ class Shell {
       return this.eval_subshell_aux(input);
     } else if (last_op === ";") {
       const op = this.eval_subshell_aux(input);
-      let append_prev = leval.out ? leval.out + "\n" : "";
-      if (this.just_cleared) {
-        append_prev = "";
-      }
+      let append_prev = leval.out && !this.just_cleared ? leval.out + "\n" : "";
       const out = append_prev + op.out;
       return {
         type: "eval_resp",
@@ -358,10 +355,7 @@ class Shell {
       return;
     } else if (last_op === "&&") {
       const op = this.eval_subshell_aux(input);
-      let append_prev = leval.out ? leval.out + "\n" : "";
-      if (this.just_cleared) {
-        append_prev = "";
-      }
+      let append_prev = leval.out && !this.just_cleared ? leval.out + "\n" : "";
       const out = append_prev + op.out;
       return {
         type: "eval_resp",

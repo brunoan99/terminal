@@ -8,7 +8,12 @@ describe("Shell", () => {
     let sut: Shell;
 
     beforeAll(() => {
-      sut = new Shell(new Environment(), new Binaries(), new MemoryFileSystem());
+      sut = new Shell(
+        new Environment(),
+        new Binaries(),
+        new MemoryFileSystem(),
+        []
+      );
     });
 
     it("should return [] on empty string", () => {
@@ -128,7 +133,12 @@ describe("Shell", () => {
     let sut: Shell;
 
     beforeAll(() => {
-      sut = new Shell(new Environment(), new Binaries(), new MemoryFileSystem());
+      sut = new Shell(
+        new Environment(),
+        new Binaries(),
+        new MemoryFileSystem(),
+        []
+      );
     });
 
     it("should parse a Operator", () => {
@@ -277,11 +287,11 @@ describe("Shell", () => {
         exec: (input: string[], fileSystem: MemoryFileSystem) => ({
           code: 0,
           out: "",
-        })
+        }),
       };
       const binaries = new Binaries();
-      binaries.insert(echoBin)
-      sut = new Shell(new Environment(), binaries, new MemoryFileSystem());
+      binaries.insert(echoBin);
+      sut = new Shell(new Environment(), binaries, new MemoryFileSystem(), []);
     });
 
     it("should return no error when check should pass", () => {
@@ -409,18 +419,18 @@ describe("Shell", () => {
         exec: (input: string[], fileSystem: MemoryFileSystem) => {
           return input[0] === "should_fail"
             ? {
-              code: 1,
-              out: "wanted fail",
-            }
+                code: 1,
+                out: "wanted fail",
+              }
             : {
-              code: 0,
-              out: `${input[0]}\n`,
-            };
-        }
+                code: 0,
+                out: `${input[0]}\n`,
+              };
+        },
       };
       const binaries = new Binaries();
-      binaries.insert(echoBin)
-      sut = new Shell(new Environment(), binaries, new MemoryFileSystem());
+      binaries.insert(echoBin);
+      sut = new Shell(new Environment(), binaries, new MemoryFileSystem(), []);
     });
 
     it("should process a bin call", () => {
@@ -487,7 +497,7 @@ describe("Shell", () => {
       ).toEqual({
         type: "eval_resp",
         code: 0,
-        out: "123\n234\n",
+        out: "123\n\n234\n",
       });
 
       expect(
@@ -512,7 +522,7 @@ describe("Shell", () => {
       ).toEqual({
         type: "eval_resp",
         code: 0,
-        out: "123\n234\n",
+        out: "123\n\n234\n",
       });
     });
 
@@ -596,7 +606,7 @@ describe("Shell", () => {
             ],
           },
         ])
-      ).toEqual({ type: "eval_resp", code: 0, out: "123\n234\n" });
+      ).toEqual({ type: "eval_resp", code: 0, out: "123\n\n234\n" });
 
       expect(
         sut.eval([
@@ -618,7 +628,7 @@ describe("Shell", () => {
             statements: [{ type: "bin", bin: "echo", args: ["234"] }],
           },
         ])
-      ).toEqual({ type: "eval_resp", code: 0, out: "123\n234\n" });
+      ).toEqual({ type: "eval_resp", code: 0, out: "123\n\n234\n" });
     });
   });
 
@@ -631,41 +641,45 @@ describe("Shell", () => {
         exec: (input: string[], fileSystem: MemoryFileSystem) => {
           return input[0] === "should_fail"
             ? {
-              code: 1,
-              out: "wanted fail",
-            }
+                code: 1,
+                out: "wanted fail",
+              }
             : {
-              code: 0,
-              out: `${input[0]}\n`,
-            };
-        }
+                code: 0,
+                out: `${input[0]}\n`,
+              };
+        },
       };
       const binaries = new Binaries();
-      binaries.insert(echoBin)
-      sut = new Shell(new Environment(), binaries, new MemoryFileSystem());
+      binaries.insert(echoBin);
+      sut = new Shell(new Environment(), binaries, new MemoryFileSystem(), []);
     });
 
     it("should exec an input", () => {
       expect(sut.exec("echo 123; echo 234")).toEqual({
         code: 0,
+        path: "/",
         input: "echo 123; echo 234",
-        output: "123\n234\n",
+        output: "123\n\n234\n",
       });
 
       expect(sut.exec("echo 123; (echo 234)")).toEqual({
         code: 0,
+        path: "/",
         input: "echo 123; (echo 234)",
-        output: "123\n234\n",
+        output: "123\n\n234\n",
       });
 
       expect(sut.exec("echo 123; (echo 234)")).toEqual({
         code: 0,
+        path: "/",
         input: "echo 123; (echo 234)",
-        output: "123\n234\n",
+        output: "123\n\n234\n",
       });
 
       expect(sut.exec("echo 123 || (echo 234)")).toEqual({
         code: 0,
+        path: "/",
         input: "echo 123 || (echo 234)",
         output: "123\n",
       });
