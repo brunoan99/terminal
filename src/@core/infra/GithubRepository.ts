@@ -1,4 +1,4 @@
-import axios, { AxiosInstance } from "axios";
+import { AxiosInstance } from "axios";
 import github_address from "../../config/github_address";
 import github_token from "../../config/github_token";
 import { IGithubRepository } from "./IGithubRepository";

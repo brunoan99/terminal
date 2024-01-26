@@ -46,7 +46,7 @@ const sortStruct = (
   return 0;
 };
 
-const createDirectoryOn = (
+const createFolderOn = (
   parent: FolderType,
   name: string,
   childs: (FileType | FolderType)[] | undefined
@@ -157,11 +157,11 @@ class MemoryFileSystem {
         continue;
       } else if (!child && pathSplited.length == 1) {
         // not exists and needs to be created cause its folder
-        createDirectoryOn(currentNav, toFind, childs);
+        createFolderOn(currentNav, toFind, childs);
         return Right(null);
       } else if (!child && parents) {
         // not exists and needs to be created cause parents option on
-        let newChild = createDirectoryOn(currentNav, toFind, childs);
+        let newChild = createFolderOn(currentNav, toFind, childs);
         currentNav = newChild;
         pathSplited.shift();
         continue;
@@ -228,38 +228,48 @@ class MemoryFileSystem {
   async listDirectoryContent(
     path: string
   ): Promise<Either<string, (FileType | FolderType)[]>> {
-    // console.log("Listing on Directory: ", path);
     let findOp = this.findDirectory(path);
     if (isLeft(findOp)) return findOp;
 
     let folder = findOp.right;
 
-    // if (path == "actions") console.log("Folder: ", folder);
-    // if (path == "actions") console.log("Childs: ", folder.childs);
+    if (path == "actions") console.log("Folder: ", folder);
+    if (path == "actions") console.log("Childs: ", folder.childs);
 
     if (folder.childs !== undefined) return Right(folder.childs);
 
     let current = folder;
-    let computed_path = "";
+    let abs_path = "";
     while (current.name != "/") {
-      let oldPath = computed_path == "" ? computed_path : "/" + computed_path;
-      computed_path = current.name + oldPath;
+      let oldPath = abs_path == "" ? abs_path : "/" + abs_path;
+      abs_path = current.name + oldPath;
       current = current.parent || this.root;
     }
-    computed_path = "/" + computed_path;
+    abs_path = "/" + abs_path;
 
-    // console.log("Will check Github on Directory: ", computed_path);
+    console.log("Will check Github on Directory: ", abs_path);
 
-    if (computed_path.startsWith("/github")) {
-      let [_1, _2, username, repo, ...rest] = computed_path.split("/");
+    if (abs_path.startsWith("/github")) {
+      let [_1, _2, username, repo, ...rest] = abs_path.split("/");
       let path = rest.join("/");
-      // let struct = await this.ghRepo.getFolderContent(username, repo, path);
-      // console.log(struct);
+      try {
+        let struct = await this.ghRepo.getFolderContent(username, repo, path);
+        console.log(struct);
+        for (const elem of struct) {
+          console.log(`Will be created on ${abs_path}/${elem.name}`);
+          if (elem.type === "file")
+            this.createFile(`${abs_path}/${elem.name}`, undefined);
+          if (elem.type === "dir")
+            this.createDirectory(`${abs_path}/${elem.name}`, true, undefined);
+        }
+      } catch (e) {
+        console.log("Error: ", e);
+      }
     }
-    return Right([]);
+    return Right(folder.childs || []);
   }
 
-  createFile(path: string, content: string): Either<string, null> {
+  createFile(path: string, content: string | undefined): Either<string, null> {
     let pathSplited = path.split("/");
     let currentNav: FolderType;
     if (path.startsWith("/")) {
