@@ -1,8 +1,9 @@
 import axios, { AxiosInstance } from "axios";
 import github_address from "../../config/github_address";
 import github_token from "../../config/github_token";
+import { IGithubRepository } from "./IGithubRepository";
 
-class GithubRepository {
+class GithubRepository implements IGithubRepository {
   BASE_URL = `${github_address.url}`;
   TOKEN = `${github_token.token}`;
   constructor(private axios: AxiosInstance) {}
@@ -16,6 +17,7 @@ class GithubRepository {
         Authorization: `Bearer ${this.TOKEN}`,
       },
     };
+    await process.nextTick(() => {});
     const response = await this.axios.request(request);
     return response.data;
   }
@@ -29,19 +31,25 @@ class GithubRepository {
         Authorization: `Bearer ${this.TOKEN}`,
       },
     };
+    await process.nextTick(() => {});
     const response = await this.axios.request(request);
     return response.data;
   }
 
-  async getRepoContent(username: string, repo: string): Promise<any> {
+  async getFolderContent(
+    username: string,
+    repo: string,
+    path: string = ""
+  ): Promise<any> {
     const request = {
-      url: `${this.BASE_URL}/repos/${username}/${repo}/contents`,
+      url: `${this.BASE_URL}/repos/${username}/${repo}/contents/${path}`,
       method: "GET",
       headers: {
         Accept: "*/*",
         Authorization: `Bearer ${this.TOKEN}`,
       },
     };
+    await process.nextTick(() => {});
     const response = await this.axios.request(request);
     return response.data;
   }
@@ -59,6 +67,7 @@ class GithubRepository {
         Authorization: `Bearer ${this.TOKEN}`,
       },
     };
+    await process.nextTick(() => {});
     const response = await this.axios.request(request);
     return response.data;
   }

@@ -66,7 +66,7 @@ const InputLine = ({ path = "~", value = "", handleValueChange, handleSubmit }: 
 );
 
 const Terminal = () => {
-  const { ops, path, buffer, setBuffer, exec } = useContext(ShellContext);
+  const { ops, path, buffer, processing, setBuffer, exec } = useContext(ShellContext);
 
   return (
     <div id="terminal" className="terminal flex flex-col p-[10px] w-[805px] h-[604px] bg-[#282A36] opacity-[0.98] border-[#D6345B] border-[2.5px] whitespace-pre overflow-y-scroll leading-relaxed select-auto"
@@ -75,12 +75,15 @@ const Terminal = () => {
       <OutputLines
         outputs={ops}
       />
-      <InputLine
-        path={path}
-        value={buffer}
-        handleValueChange={setBuffer}
-        handleSubmit={exec}
-      />
+      { processing
+        ? <></>
+        : <InputLine
+            path={path}
+            value={buffer}
+            handleValueChange={setBuffer}
+            handleSubmit={exec}
+          />}
+
     </div>
   );
 };

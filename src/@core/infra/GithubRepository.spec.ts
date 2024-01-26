@@ -19,8 +19,8 @@ describe("Github Repository", () => {
     expect(op.length).toBeGreaterThan(0);
   });
 
-  test("should get repo content", async () => {
-    let op = await sut.getRepoContent("brunoan99", "actions");
+  test("should get folder content", async () => {
+    let op = await sut.getFolderContent("brunoan99", "actions");
     expect(op.length).toBeGreaterThan(0);
   });
 

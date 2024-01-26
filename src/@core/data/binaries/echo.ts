@@ -3,13 +3,17 @@ import { MemoryFileSystem } from "../../domain/file-system";
 
 class EchoBin implements Bin {
   public name: string = "echo";
-  exec(input: string[], fileSystem: MemoryFileSystem): BinResponse {
+
+  async exec(
+    input: string[],
+    fileSystem: MemoryFileSystem
+  ): Promise<BinResponse> {
     let content = input.join(" ");
 
     return {
       code: 0,
       out: content || "\n",
-    }
+    };
   }
 }
 

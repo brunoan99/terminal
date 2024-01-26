@@ -4,23 +4,29 @@ import { MemoryFileSystem } from "../../domain/file-system";
 
 class TouchBin implements Bin {
   public name: string = "touch";
-  exec(input: string[], fileSystem: MemoryFileSystem): BinResponse {
+
+  async exec(
+    input: string[],
+    fileSystem: MemoryFileSystem
+  ): Promise<BinResponse> {
     let path = input[0];
-    if (!path) return {
-      code: 1,
-      out: `"touch": missing file operand`
-    };
+    if (!path)
+      return {
+        code: 1,
+        out: `"touch": missing file operand`,
+      };
 
     let op = fileSystem.createFile(path, "");
-    if (isLeft(op)) return {
-      code: 1,
-      out: `"touch": ${op.left}`
-    };
+    if (isLeft(op))
+      return {
+        code: 1,
+        out: `"touch": ${op.left}`,
+      };
 
     return {
       code: 0,
       out: "",
-    }
+    };
   }
 }
 

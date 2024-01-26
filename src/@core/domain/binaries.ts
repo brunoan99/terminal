@@ -7,13 +7,13 @@ type BinResponse = {
 
 interface Bin {
   name: string;
-  exec(input: string[], fileSystem: MemoryFileSystem): BinResponse;
+  exec(input: string[], fileSystem: MemoryFileSystem): Promise<BinResponse>;
 }
 
-type BinSet = { [key: string]: Bin }
+type BinSet = { [key: string]: Bin };
 
 class Binaries {
-  public binSet: BinSet = {}
+  public binSet: BinSet = {};
 
   insert(bin: Bin) {
     this.binSet[bin.name] = bin;

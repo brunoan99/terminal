@@ -267,7 +267,7 @@ class Shell {
     this.contain_clear = true;
   }
 
-  private eval_bin_aux(input: BinCall): EvalResp {
+  private async eval_bin_aux(input: BinCall): Promise<EvalResp> {
     if (input.bin === "clear") {
       this.eval_bin_clear();
       return {
@@ -279,7 +279,7 @@ class Shell {
     this.just_cleared = false;
     const bin = this.binSet.getBin(input.bin);
     const args = this.eval_args(input.args);
-    const bin_out = (bin as Bin).exec(args, this.fileSystem);
+    const bin_out = await (bin as Bin).exec(args, this.fileSystem);
     return {
       type: "eval_resp",
       code: bin_out.code,
@@ -287,15 +287,15 @@ class Shell {
     };
   }
 
-  private eval_bin(
+  private async eval_bin(
     input: BinCall,
     leval: BinResponse,
     last_op: "" | ";" | "|" | "||" | "&&"
-  ): EvalResp | undefined {
+  ): Promise<EvalResp | undefined> {
     if (last_op === "") {
       return this.eval_bin_aux(input);
     } else if (last_op === ";") {
-      const op = this.eval_bin_aux(input);
+      const op = await this.eval_bin_aux(input);
       let append_prev = leval.out ? leval.out + "\n" : "";
       if (this.just_cleared) {
         append_prev = "";
@@ -309,7 +309,7 @@ class Shell {
     } else if (last_op === "&&" && leval.code !== 0) {
       return;
     } else if (last_op === "&&") {
-      const op = this.eval_bin_aux(input);
+      const op = await this.eval_bin_aux(input);
       let append_prev = leval.out ? leval.out + "\n" : "";
       if (this.just_cleared) {
         append_prev = "";
@@ -331,19 +331,19 @@ class Shell {
     });
   }
 
-  private eval_subshell_aux(input: Subshell): EvalResp {
-    return this.eval(input.statements);
+  private async eval_subshell_aux(input: Subshell): Promise<EvalResp> {
+    return await this.eval(input.statements);
   }
 
-  private eval_subshell(
+  private async eval_subshell(
     input: Subshell,
     leval: EvalResp,
     last_op: "" | ";" | "|" | "||" | "&&"
-  ): EvalResp | undefined {
+  ): Promise<EvalResp | undefined> {
     if (last_op === "") {
       return this.eval_subshell_aux(input);
     } else if (last_op === ";") {
-      const op = this.eval_subshell_aux(input);
+      const op = await this.eval_subshell_aux(input);
       let append_prev = leval.out && !this.just_cleared ? leval.out + "\n" : "";
       const out = append_prev + op.out;
       return {
@@ -354,7 +354,7 @@ class Shell {
     } else if (last_op === "&&" && leval.code !== 0) {
       return;
     } else if (last_op === "&&") {
-      const op = this.eval_subshell_aux(input);
+      const op = await this.eval_subshell_aux(input);
       let append_prev = leval.out && !this.just_cleared ? leval.out + "\n" : "";
       const out = append_prev + op.out;
       return {
@@ -384,7 +384,7 @@ class Shell {
     this.envs.change(input.name, value);
   }
 
-  eval(input: Parsed): EvalResp {
+  async eval(input: Parsed): Promise<EvalResp> {
     let leval: EvalResp = {
       type: "eval_resp",
       code: 0,
@@ -393,12 +393,12 @@ class Shell {
     let last_op: "" | ";" | "|" | "||" | "&&" = "";
     for (let value of input) {
       if (value.type === "bin") {
-        const out = this.eval_bin(value, leval, last_op);
+        const out = await this.eval_bin(value, leval, last_op);
         if (out !== undefined) {
           leval = out;
         }
       } else if (value.type === "subshell") {
-        const out = this.eval_subshell(value, leval, last_op);
+        const out = await this.eval_subshell(value, leval, last_op);
         if (out !== undefined) {
           leval = out;
         }
@@ -413,7 +413,7 @@ class Shell {
     return leval;
   }
 
-  exec(input: string): ShellOp {
+  async exec(input: string): Promise<ShellOp> {
     let path = this.fileSystem.currentPath;
     const parsed = this.parse(input);
     const check = this.check(parsed);
@@ -426,7 +426,7 @@ class Shell {
         code: 1,
       };
     } else {
-      const evaluated = this.eval(parsed);
+      const evaluated = await this.eval(parsed);
       op = {
         path,
         input: input,

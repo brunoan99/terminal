@@ -4,21 +4,25 @@ import { MemoryFileSystem } from "../../domain/file-system";
 
 class CatBin implements Bin {
   public name: string = "cat";
-  exec(input: string[], fileSystem: MemoryFileSystem): BinResponse {
+  async exec(
+    input: string[],
+    fileSystem: MemoryFileSystem
+  ): Promise<BinResponse> {
     let path = input[0];
     if (!path) path = ".";
 
     let op = fileSystem.findFile(path);
-    if (isLeft(op)) return {
-      code: 1,
-      out: `"cat": ${op.left}`,
-    }
+    if (isLeft(op))
+      return {
+        code: 1,
+        out: `"cat": ${op.left}`,
+      };
 
     let file = op.right;
     return {
       code: 0,
       out: file.body || "",
-    }
+    };
   }
 }
 
