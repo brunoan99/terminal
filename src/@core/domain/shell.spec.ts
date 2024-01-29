@@ -34,7 +34,7 @@ describe("Shell", () => {
       getUserInformation: jest.fn(),
       getUserRepositories: jest.fn(),
       getPathContent: jest.fn(),
-      getFileRawContent: jest.fn(),
+      getRepositoryInformation: jest.fn(),
     } as jest.Mocked<IGithubRepository>;
     sut = new Shell(
       new Environment(),

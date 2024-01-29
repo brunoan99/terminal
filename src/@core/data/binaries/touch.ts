@@ -1,6 +1,6 @@
 import { isLeft } from "fp-ts/lib/Either";
 import { Bin, BinResponse } from "@domain";
-import { MemoryFileSystem } from "../../domain/file-system";
+import { MemoryFileSystem, newFile } from "../../domain/file-system";
 
 class TouchBin implements Bin {
   public name: string = "touch";
@@ -16,7 +16,12 @@ class TouchBin implements Bin {
         out: `"touch": missing file operand`,
       };
 
-    let op = fileSystem.createFile(path, "");
+    let abs_path = fileSystem.getAbsolutePath(path);
+    let splited = abs_path.split("/").filter((p) => p !== "");
+    let name = splited[splited.length - 1];
+    let pathTo = `/${splited.slice(0, length - 1).join("/")}`;
+
+    let op = await fileSystem.create(pathTo, newFile(name));
     if (isLeft(op))
       return {
         code: 1,

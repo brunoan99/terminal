@@ -26,11 +26,13 @@ type FolderType = {
 const newFile = (
   name: string,
   parent: FolderType | undefined = undefined,
-  body: string | undefined = undefined
+  body: string | undefined = undefined,
+  fullyVerified: boolean = false
 ): FileType => ({
   name,
   body,
   parent,
+  fullyVerified,
   type: "file",
 });
 
@@ -223,7 +225,13 @@ class MemoryFileSystem {
     recursively: boolean,
     empty: boolean
   ): Promise<Either<string, null>> {
-    throw new Error("not implemented yet");
+    let findOp = await this.find(path);
+    if (isLeft(findOp)) return findOp;
+
+    let elem = findOp.right;
+    let parent = elem.parent;
+
+    return Right(null);
   }
 
   async find(path: string): Promise<Either<string, FileType | FolderType>> {
@@ -255,7 +263,10 @@ class MemoryFileSystem {
       await this.getGithubContent(abs_path);
       current = pastCurrent.childs.get(current.name) as FolderType;
     }
-
+    if (current.type == "file" && !current.fullyVerified) {
+      await this.getGithubContent(abs_path);
+      current = pastCurrent.childs.get(current.name) as FileType;
+    }
     return Right(current);
   }
 
@@ -279,11 +290,12 @@ class MemoryFileSystem {
     const splited = abs_path.split("/").filter((p) => p !== "");
 
     let [_, username, repo, path] = splited;
+    let path_str = splited.slice(3).join("/");
 
-    if (path !== undefined) {
+    if (path !== undefined && path !== "repository_info.json") {
       // it means that is inside a Repository
       // because for the path to be something username and repo must also be
-      let op = await this.ghRepo.getPathContent(username, repo, path);
+      let op = await this.ghRepo.getPathContent(username, repo, path_str);
       if (!op) return Left(`cannot find on github`);
       const path_to_include = `/${splited
         .slice(0, splited.length - 1)
@@ -292,7 +304,7 @@ class MemoryFileSystem {
 
       if (op.type == "file") {
         const body = Buffer.from(op.content, "base64").toString();
-        const nf = newFile(name, undefined, body);
+        const nf = newFile(name, undefined, body, true);
         this.create(path_to_include, nf, true);
         return Right(null);
       }
@@ -312,8 +324,9 @@ class MemoryFileSystem {
 
       return Left(`cannot process this submit`);
     }
+    path = "";
 
-    if (repo !== undefined) {
+    if (repo !== undefined && repo !== "profile_info.json") {
       // it means is the Repository
       // so it have to get the content and the infos
       let [content, info] = await Promise.all([
@@ -327,7 +340,12 @@ class MemoryFileSystem {
 
       const path_to_include = `/github/${username}`;
       const name = repo;
-      const nfi = newFile("info.json", undefined, info);
+      const nfi = newFile(
+        "repository_info.json",
+        undefined,
+        JSON.stringify(info, null, "  "),
+        true
+      );
       const nfo = newFolder(name, undefined, new Map(), true);
       let childs: Map<string, FolderType | FileType> = new Map();
 
@@ -346,6 +364,7 @@ class MemoryFileSystem {
 
       return Right(null);
     }
+    repo = "";
 
     if (username !== undefined) {
       // it means is the Profile
@@ -359,7 +378,12 @@ class MemoryFileSystem {
       const path_to_include = "/github";
       const name = username;
 
-      const nfi = newFile("info.json", undefined, info);
+      const nfi = newFile(
+        "profile_info.json",
+        undefined,
+        JSON.stringify(info, null, "  "),
+        true
+      );
       const nfo = newFolder(name, undefined, new Map(), true);
       let childs: Map<string, FolderType | FileType> = new Map();
       let repos: any[] = [];

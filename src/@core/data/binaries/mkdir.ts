@@ -30,7 +30,7 @@ class MkdirBin implements Bin {
         out: `"mkdir": missing file operand`,
       };
 
-    let op = fileSystem.createDirectory(path, parents);
+    let op = await fileSystem.create(path, undefined, parents);
     if (isLeft(op))
       return {
         code: 1,

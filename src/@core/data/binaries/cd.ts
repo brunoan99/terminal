@@ -9,9 +9,9 @@ class CdBin implements Bin {
     fileSystem: MemoryFileSystem
   ): Promise<BinResponse> {
     let path = input[0];
-    if (!path) path = ".";
+    if (!path) path = "/";
 
-    let op = fileSystem.changeCurrentDirectory(path);
+    let op = await fileSystem.changeCurrentDirectory(path);
     if (isLeft(op))
       return {
         code: 1,

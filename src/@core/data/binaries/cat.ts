@@ -11,13 +11,18 @@ class CatBin implements Bin {
     let path = input[0];
     if (!path) path = ".";
 
-    let op = fileSystem.findFile(path);
+    let op = await fileSystem.find(path);
+
     if (isLeft(op))
       return {
         code: 1,
         out: `"cat": ${op.left}`,
       };
-
+    if (op.right.type == "folder")
+      return {
+        code: 1,
+        out: `"cat": ${path}: Is a directory`,
+      };
     let file = op.right;
     return {
       code: 0,
