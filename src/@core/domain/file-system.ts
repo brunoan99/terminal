@@ -222,8 +222,8 @@ class MemoryFileSystem {
 
   async remove(
     path: string,
-    recursively: boolean,
-    empty: boolean
+    recursively: boolean = false,
+    empty: boolean = false
   ): Promise<Either<string, null>> {
     let findOp = await this.find(path);
     if (isLeft(findOp)) return findOp;
@@ -231,7 +231,29 @@ class MemoryFileSystem {
     let elem = findOp.right;
     let parent = elem.parent;
 
-    return Right(null);
+    // if parent is undefined elem is root
+    if (parent == undefined && recursively)
+      return Left("it is dangerous to operate recursively on '/'");
+    if (parent == undefined) return Left("cannot remove '/': Is a directory");
+
+    if (elem.type == "file") {
+      parent.childs.delete(elem.name);
+      return Right(null);
+    } else {
+      if (recursively) {
+        parent.childs.delete(elem.name);
+        return Right(null);
+      }
+      if (empty) {
+        if (elem.childs.size == 0) {
+          parent.childs.delete(elem.name);
+          return Right(null);
+        } else {
+          return Left(`cannot remove '${path}': Directory not empty`);
+        }
+      }
+      return Left(`cannot remove '${path}': Is a directory`);
+    }
   }
 
   async find(path: string): Promise<Either<string, FileType | FolderType>> {

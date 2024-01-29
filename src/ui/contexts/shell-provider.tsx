@@ -14,6 +14,7 @@ import { TouchBin } from "../../@core/data/binaries/touch";
 import { MkdirBin } from "../../@core/data/binaries/mkdir";
 import axios from "axios";
 import { GithubRepository } from "../../@core/infra/GithubRepository";
+import { RmBin } from "../../@core/data/binaries/rm";
 
 type ShellContextType = {
   ops: ShellOp[]
@@ -62,6 +63,9 @@ const binaries = (): Binaries => {
   let pwd_bin = new PwdBin();
   bins.insert(pwd_bin);
 
+  let rm_bin = new RmBin();
+  bins.insert(rm_bin);
+
   let touch_bin = new TouchBin();
   bins.insert(touch_bin);
 
@@ -94,9 +98,9 @@ const ShellProvider = ({ children }: { children: React.ReactNode }) => {
   const exec = async () => {
     setProcessing(true);
     let input = buffer;
-    setBuffer("");
     if (!input || input == '\n') return;
     await shell.exec(input);
+    setBuffer("");
     setProcessing(false);
   }
 

@@ -1,6 +1,6 @@
 import { isLeft } from "fp-ts/lib/Either";
 import { Bin, BinResponse } from "@domain";
-import { MemoryFileSystem } from "../../domain/file-system";
+import { MemoryFileSystem, newFolder } from "../../domain/file-system";
 
 class MkdirBin implements Bin {
   public name: string = "mkdir";
@@ -30,7 +30,10 @@ class MkdirBin implements Bin {
         out: `"mkdir": missing file operand`,
       };
 
-    let op = await fileSystem.create(path, undefined, parents);
+    let splited = path.split("/");
+    let name = splited[splited.length - 1];
+    let pathTo = splited.slice(0, splited.length - 2).join("/");
+    let op = await fileSystem.create(pathTo, newFolder(name), parents);
     if (isLeft(op))
       return {
         code: 1,

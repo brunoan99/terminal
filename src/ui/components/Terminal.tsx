@@ -55,6 +55,7 @@ const InputLine = ({ path = "~", value = "", handleValueChange, handleSubmit }: 
         value={value}
         onChange={(e) => handleValueChange(e.target.value)}
         onKeyDown={(e) => {
+          if (e.code == "Tab") e.preventDefault();
           if (["Enter", "NumpadEnter"].includes(e.code)) {
             e.preventDefault();
             handleSubmit();
@@ -76,7 +77,10 @@ const Terminal = () => {
         outputs={ops}
       />
       { processing
-        ? <></>
+        ? <div>
+            <PathLine path={path} />
+            <InputLabel input={buffer} />
+          </div>
         : <InputLine
             path={path}
             value={buffer}
