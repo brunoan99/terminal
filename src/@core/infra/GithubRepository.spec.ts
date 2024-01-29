@@ -15,17 +15,12 @@ describe("Github Repository", () => {
   });
 
   test("should get user repositories", async () => {
-    let op = await sut.getUserRepositories("brunoan99");
+    let op = await sut.getUserRepositories("brunoan99", 1, 100);
     expect(op.length).toBeGreaterThan(0);
   });
 
   test("should get folder content", async () => {
-    let op = await sut.getFolderContent("brunoan99", "actions");
+    let op = await sut.getPathContent("brunoan99", "actions");
     expect(op.length).toBeGreaterThan(0);
-  });
-
-  test("should get file content", async () => {
-    let op = await sut.getFileContent("brunoan99", "actions", ".gitignore");
-    expect(op).toBe("node_modules");
   });
 });

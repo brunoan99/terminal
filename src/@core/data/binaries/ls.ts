@@ -62,7 +62,7 @@ class LsBin implements Bin {
         out: `"ls": ${op.left}`,
       };
     let contents = op.right;
-    const names = contents.map((value) => value.name);
+    const names = Array.from(contents, ([name, value]) => name);
 
     let lines = this.arrange_names_in_lines(names);
     let out = lines.join("\n");

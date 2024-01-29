@@ -1,8 +1,12 @@
 interface IGithubRepository {
-  getUserInformation(username: string): Promise<any>;
-  getUserRepositories(username: string): Promise<any>;
-  getFolderContent(username: string, repo: string, path: string): Promise<any>;
-  getFileContent(username: string, repo: string, path: string): Promise<any>;
+  getUserInformation(usr: string): Promise<any | null>;
+  getUserRepositories(
+    usr: string,
+    page: number,
+    per_page: number
+  ): Promise<any | null>;
+  getRepositoryInformation(usr: string, repo: string): Promise<any | null>;
+  getPathContent(usr: string, repo: string, path: string): Promise<any | null>;
 }
 
 export type { IGithubRepository };

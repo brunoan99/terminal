@@ -4,7 +4,7 @@ import { createContext, useMemo, useState } from "react";
 import { Shell, ShellOp } from "../../@core/domain/shell";
 import { Environment } from "../../@core/domain/environment";
 import { Binaries } from "../../@core/domain/binaries";
-import { MemoryFileSystem } from "../../@core/domain/file-system";
+import { MemoryFileSystem, newFile } from "../../@core/domain/file-system";
 import { LsBin } from "../../@core/data/binaries/ls";
 import { CdBin } from "../../@core/data/binaries/cd";
 import { CatBin } from "../../@core/data/binaries/cat";
@@ -73,12 +73,11 @@ const memorySystem = (): MemoryFileSystem => {
   let ghRepo = new GithubRepository(axios_instance);
   let file_system = new MemoryFileSystem(ghRepo);
 
-  file_system.createDirectory("/any/folder", true, []);
-  file_system.createDirectory("/usr/bin", true, []);
-  file_system.createFile("/any/aopa", "an example and only a example");
-  file_system.createFile("/any/folder/uepa", "");
-  file_system.createDirectory("/github/brunoan99/terminal", true, undefined);
-  file_system.createDirectory("/github/brunoan99/actions", true, undefined);
+  file_system.create("/any/folder", undefined, true);
+  file_system.create("/usr/bin", undefined, true);
+  file_system.create("/any", newFile("aopa", undefined,"an example and only a example"));
+  file_system.create("/any/folder", newFile("uepa"));
+  file_system.create("/github", undefined, true);
 
   return file_system;
 }

@@ -1,16 +1,31 @@
-import { Either, left as Left, right as Right, isLeft } from "fp-ts/lib/Either";
+import {
+  Either,
+  left as Left,
+  right as Right,
+  isLeft,
+  isRight,
+} from "fp-ts/lib/Either";
 import { IGithubRepository } from "../infra/IGithubRepository";
 
 type FileType = {
   name: string;
   body: string | undefined;
-  parent: FolderType;
+  parent: FolderType | undefined;
+  fullyVerified?: boolean;
   type: "file";
+};
+
+type FolderType = {
+  name: string;
+  childs: Map<string, FileType | FolderType>;
+  parent: FolderType | undefined;
+  fullyVerified?: boolean;
+  type: "folder";
 };
 
 const newFile = (
   name: string,
-  parent: FolderType,
+  parent: FolderType | undefined = undefined,
   body: string | undefined = undefined
 ): FileType => ({
   name,
@@ -19,56 +34,61 @@ const newFile = (
   type: "file",
 });
 
-type FolderType = {
-  name: string;
-  childs: (FileType | FolderType)[] | undefined;
-  parent: FolderType | undefined;
-  type: "folder";
-};
-
 const newFolder = (
   name: string,
   parent: FolderType | undefined = undefined,
-  childs: (FileType | FolderType)[] | undefined
+  childs: Map<string, FileType | FolderType> = new Map(),
+  fullyVerified: boolean = false
 ): FolderType => ({
   name,
   childs,
   parent,
+  fullyVerified,
   type: "folder",
 });
 
-const sortStruct = (
-  a: FileType | FolderType,
-  b: FileType | FolderType
-): number => {
-  if (a.name < b.name) return -1;
-  if (a.name > b.name) return 1;
-  return 0;
-};
+const insertOn = (parent: FolderType, elem: FolderType | FileType) => {
+  elem.parent = parent;
+  let existent = parent.childs.get(elem.name);
 
-const createFolderOn = (
-  parent: FolderType,
-  name: string,
-  childs: (FileType | FolderType)[] | undefined
-): FolderType => {
-  let newF: FolderType = newFolder(name, parent, childs);
-  if (parent.childs) {
-    parent.childs.push(newF);
-    parent.childs.sort(sortStruct);
-  } else {
-    parent.childs = [newF];
+  // if no exist in parent, just insert;
+  if (!existent) {
+    parent.childs.set(elem.name, elem);
+    return;
   }
-  return newF;
-};
 
-const createFileOn = (parent: FolderType, name: string, content?: string) => {
-  let newF: FileType = newFile(name, parent, content);
-  if (parent.childs) {
-    parent.childs.push(newF);
-    parent.childs.sort(sortStruct);
-  } else {
-    parent.childs = [newF];
+  // if exists and elem is a file than just replace;
+  if (elem.type == "file") {
+    parent.childs.set(elem.name, elem);
+    return;
   }
+
+  // if exists as a file just replace
+  // because if elem is a file will replace existent
+  // if elem is a folder will replace existent
+  if (existent.type == "file") {
+    parent.childs.set(elem.name, elem);
+    return;
+  }
+
+  const newChilds = new Map();
+  const fullyVerified: string[] = [];
+
+  // if exists and elem is a folder than should merge childs;
+  // first fill with existent
+  for (const [name, newElem] of existent.childs.entries()) {
+    if (newElem.fullyVerified) fullyVerified.push(name);
+    newChilds.set(name, newElem);
+  }
+  // after it fill with elem
+  // cause if both have child with same nam, the final will be
+  // the elem child
+  for (const [name, newElem] of elem.childs.entries()) {
+    if (fullyVerified.includes(name)) continue;
+    newChilds.set(name, newElem);
+  }
+  elem.childs = newChilds;
+  parent.childs.set(elem.name, elem);
 };
 
 class MemoryFileSystem {
@@ -77,7 +97,7 @@ class MemoryFileSystem {
 
   constructor(private ghRepo: IGithubRepository) {
     this.ghRepo = ghRepo;
-    this.root = newFolder("/", undefined, []);
+    this.root = newFolder("/", undefined, new Map(), true);
     this.current = this.root;
   }
 
@@ -92,356 +112,296 @@ class MemoryFileSystem {
     return "/" + path;
   }
 
-  getAbsolutePath(path: string): Either<string, string> {
-    let op = this.findDirectory(path);
-    if (isLeft(op)) return op;
-    let current = op.right;
-    let computed_path = "";
-    while (current.name != "/") {
-      let oldPath = computed_path == "" ? computed_path : "/" + computed_path;
-      computed_path = current.name + oldPath;
-      current = current.parent || this.root;
+  getAbsolutePath(path: string): string {
+    if (path.startsWith("/")) return path;
+    else {
+      let splited_path = `${this.currentPath}/${path}`
+        .split("/")
+        .filter((p) => p !== "" && p !== ".");
+      let index = 0;
+      while (index < splited_path.length) {
+        if (splited_path[index] === "..") {
+          splited_path.splice(index - 1, 2);
+          continue;
+        }
+        index++;
+      }
+      return `/${splited_path.join("/")}`;
     }
-    return Right("/" + computed_path);
   }
 
-  changeCurrentDirectory(path: string): Either<string, null> {
-    let findOp = this.findDirectory(path);
+  async changeCurrentDirectory(path: string): Promise<Either<string, null>> {
+    let findOp = await this.find(path);
     if (isLeft(findOp)) return findOp;
-    let folder = findOp.right;
-    this.current = folder;
+    let element = findOp.right;
+    if (!(element.type === "folder")) return Left(`not a directory: ${path}`);
+    this.current = element;
     return Right(null);
   }
 
-  createDirectory(
+  private createRecursively(
     path: string,
-    parents: boolean = false,
-    childs: (FileType | FolderType)[] | undefined
-  ): Either<string, null> {
-    let pathSplited = path.split("/");
-    let currentNav: FolderType;
-    if (path.startsWith("/")) {
-      currentNav = this.root;
-      pathSplited.shift(); // when split left side of '/' becomes '' in array
-    } else {
-      currentNav = this.current;
-    }
+    elem: FolderType | FileType | undefined
+  ) {
+    let pathSplited = path.split("/").filter((p) => p !== "." && p !== "");
+    let current: FolderType = this.root;
 
-    while (pathSplited) {
+    while (pathSplited.length != 0) {
       let toFind = pathSplited[0];
-      if (toFind === "." && pathSplited.length === 1) {
-        // '.' is always existent
-        return Left(`cannot create directory ‘${path}’: File exists`);
-      } else if (toFind === ".") {
-        pathSplited.shift();
-        continue;
-      }
-      if (toFind === "..") {
-        // '..' represents parent folder
-        currentNav = currentNav.parent || this.root;
-        pathSplited.shift();
-        continue;
-      }
-      let child = currentNav.childs?.find((c) => c.name == toFind);
 
-      if (child && pathSplited.length === 1) {
-        // exists in the place of folder to be created and its a file
-        return Left(`cannot create directory ‘${path}’: File exists`);
-      } else if (child?.type == "file") {
-        // exists in the middle of the path to folder to be created and its a file
-        return Left(`cannot create directory ‘${path}’: Not a directory`);
-      } else if (child) {
-        // exists and its a folder
-        currentNav = child;
-        pathSplited.shift();
-        continue;
-      } else if (!child && pathSplited.length == 1) {
-        // not exists and needs to be created cause its folder
-        createFolderOn(currentNav, toFind, childs);
-        return Right(null);
-      } else if (!child && parents) {
-        // not exists and needs to be created cause parents option on
-        let newChild = createFolderOn(currentNav, toFind, childs);
-        currentNav = newChild;
-        pathSplited.shift();
-        continue;
-      } else {
-        // not exists and parents option off
-        return Left(
-          `cannot create directory ‘${path}’: No such file or directory`
-        );
+      let nextCurrent = current.childs?.get(toFind);
+      if (nextCurrent === undefined) {
+        // there is no folder in path to elem, than it must to be created
+        nextCurrent = newFolder(toFind, current);
+        insertOn(current, nextCurrent);
       }
+      if (nextCurrent.type == "file") {
+        // there is no correct solution in this case
+        // will proced to replace file to a folder
+        current.childs.delete(toFind);
+        nextCurrent = newFolder(toFind, current);
+        insertOn(current, nextCurrent);
+      }
+      current = nextCurrent;
+      pathSplited.shift();
+      continue;
     }
-
-    return Left(`cannot create directory ‘${path}’: File exists`);
+    // only needs to create the path;
+    if (!elem) return;
+    insertOn(current, elem);
   }
 
-  findDirectory(path: string): Either<string, FolderType> {
-    let pathSplited = path.split("/");
-    let currentNav: FolderType;
-    if (path.startsWith("/")) {
-      currentNav = this.root;
-      pathSplited.shift(); // when split left side of '/' becomes '' in array
-    } else {
-      currentNav = this.current;
-    }
+  private createDefault(
+    path: string,
+    elem: FolderType | FileType | undefined
+  ): Either<null, null> {
+    let pathSplited = path.split("/").filter((p) => p !== "." && p !== "");
+    let current: FolderType = this.root;
 
-    while (pathSplited) {
+    while (pathSplited.length != 0) {
       let toFind = pathSplited[0];
-      if ((toFind === "." || toFind === "") && pathSplited.length === 1) {
-        return Right(currentNav);
-      }
-      if (toFind === "." || toFind === "") {
-        pathSplited.shift();
-        continue;
-      }
-      if (toFind === ".." && pathSplited.length === 1) {
-        return Right(currentNav.parent || this.root);
-      }
-      if (toFind === "..") {
-        currentNav = currentNav.parent || this.root;
-        pathSplited.shift();
-        continue;
-      }
 
-      let child = currentNav.childs?.find((c) => c.name == toFind);
-
-      if (child?.type == "folder" && pathSplited.length === 1) {
-        // exists in place and must be returned
-        return Right(child);
-      } else if (child?.type == "folder") {
-        // exists in the middle of the path to folder to be find
-        currentNav = child;
-        pathSplited.shift();
-        continue;
-      } else if (child?.type == "file") {
-        // exists in path to folder to be find and its a file
-        return Left(`not a directory: ${path}`);
-      } else {
-        // not exists
-        return Left(`no such file or directory: ${path}`);
+      let nextCurrent = current.childs?.get(toFind);
+      if (nextCurrent === undefined) {
+        // there is no folder in path to elem
+        return Left(null);
       }
+      if (nextCurrent.type == "file") {
+        // there is a file in path to elem
+        return Left(null);
+      }
+      current = nextCurrent;
+      pathSplited.shift();
+      continue;
     }
-    return Left(`no such file or directory: ${path}`);
+    if (elem) insertOn(current, elem);
+    return Right(null);
+  }
+
+  async create(
+    path: string,
+    elem: FolderType | FileType | undefined,
+    recursively: boolean = false
+  ): Promise<Either<string, null>> {
+    if (recursively) {
+      // in recursively every single folder not found must to be created
+      // and then add the elem
+      this.createRecursively(path, elem);
+      return Right(null);
+    } else {
+      // in default if not part isn't found than search entire path on github
+      // case exists create and then add the elem
+      // to do it create must be called in github search with recursively option
+      const mkOp = this.createDefault(path, elem);
+      if (isRight(mkOp)) return Right(null);
+      return this.getGithubContent(path);
+    }
+  }
+
+  async remove(
+    path: string,
+    recursively: boolean,
+    empty: boolean
+  ): Promise<Either<string, null>> {
+    throw new Error("not implemented yet");
+  }
+
+  async find(path: string): Promise<Either<string, FileType | FolderType>> {
+    let abs_path = this.getAbsolutePath(path);
+    // both "." and "" does not affect the navigation process;
+    let pathSplited = abs_path.split("/").filter((p) => p !== "." && p !== "");
+    let current: FolderType | FileType = this.root;
+    let pastCurrent: FolderType | FileType = this.root;
+
+    while (pathSplited.length != 0) {
+      let toFind = pathSplited[0];
+
+      if (current.type == "file") return Left(`not a directory: ${path}`);
+
+      let nextCurrent: FolderType | FileType | undefined =
+        current.childs?.get(toFind);
+      if (nextCurrent === undefined) {
+        const ghOp = await this.getGithubContent(abs_path);
+        if (isLeft(ghOp)) return ghOp;
+        nextCurrent = current.childs?.get(toFind) as FolderType | FileType;
+      }
+      pastCurrent = current;
+      current = nextCurrent;
+      pathSplited.shift();
+      continue;
+    }
+    if (current == undefined) return Left(`no such file or directory: ${path}`);
+    if (current.type == "folder" && !current.fullyVerified) {
+      await this.getGithubContent(abs_path);
+      current = pastCurrent.childs.get(current.name) as FolderType;
+    }
+
+    return Right(current);
   }
 
   async listDirectoryContent(
     path: string
-  ): Promise<Either<string, (FileType | FolderType)[]>> {
-    let findOp = this.findDirectory(path);
+  ): Promise<Either<string, Map<string, FileType | FolderType>>> {
+    let findOp = await this.find(path);
     if (isLeft(findOp)) return findOp;
 
-    let folder = findOp.right;
+    let elem = findOp.right;
 
-    if (path == "actions") console.log("Folder: ", folder);
-    if (path == "actions") console.log("Childs: ", folder.childs);
+    if (elem.type == "folder") return Right(elem.childs);
+    return Right(new Map().set(elem.name, elem));
+  }
 
-    if (folder.childs !== undefined) return Right(folder.childs);
+  private async getGithubContent(
+    abs_path: string
+  ): Promise<Either<string, null>> {
+    if (!abs_path.startsWith("/github"))
+      return Left(`no such file or directory: ${abs_path}`);
+    const splited = abs_path.split("/").filter((p) => p !== "");
 
-    let current = folder;
-    let abs_path = "";
-    while (current.name != "/") {
-      let oldPath = abs_path == "" ? abs_path : "/" + abs_path;
-      abs_path = current.name + oldPath;
-      current = current.parent || this.root;
-    }
-    abs_path = "/" + abs_path;
+    let [_, username, repo, path] = splited;
 
-    console.log("Will check Github on Directory: ", abs_path);
+    if (path !== undefined) {
+      // it means that is inside a Repository
+      // because for the path to be something username and repo must also be
+      let op = await this.ghRepo.getPathContent(username, repo, path);
+      if (!op) return Left(`cannot find on github`);
+      const path_to_include = `/${splited
+        .slice(0, splited.length - 1)
+        .join("/")}`;
+      const name = splited[splited.length - 1];
 
-    if (abs_path.startsWith("/github")) {
-      let [_1, _2, username, repo, ...rest] = abs_path.split("/");
-      let path = rest.join("/");
-      try {
-        let struct = await this.ghRepo.getFolderContent(username, repo, path);
-        console.log(struct);
-        for (const elem of struct) {
-          console.log(`Will be created on ${abs_path}/${elem.name}`);
-          if (elem.type === "file")
-            this.createFile(`${abs_path}/${elem.name}`, undefined);
-          if (elem.type === "dir")
-            this.createDirectory(`${abs_path}/${elem.name}`, true, undefined);
+      if (op.type == "file") {
+        const body = Buffer.from(op.content, "base64").toString();
+        const nf = newFile(name, undefined, body);
+        this.create(path_to_include, nf, true);
+        return Right(null);
+      }
+
+      if (Array.isArray(op)) {
+        const nf = newFolder(name, undefined, new Map(), true);
+        const childs = new Map();
+        for (const obj of op) {
+          obj.type == "file"
+            ? childs.set(obj.name, newFile(obj.name, nf))
+            : childs.set(obj.name, newFolder(obj.name, nf));
         }
-      } catch (e) {
-        console.log("Error: ", e);
+        nf.childs = childs;
+        this.create(path_to_include, nf, true);
+        return Right(null);
       }
+
+      return Left(`cannot process this submit`);
     }
-    return Right(folder.childs || []);
+
+    if (repo !== undefined) {
+      // it means is the Repository
+      // so it have to get the content and the infos
+      let [content, info] = await Promise.all([
+        this.ghRepo.getPathContent(username, repo, path),
+        this.ghRepo.getRepositoryInformation(username, repo),
+      ]);
+
+      if (!content) return Left(`cannot find repo on github`);
+
+      if (!info) return Left(`cannot find repo info on github`);
+
+      const path_to_include = `/github/${username}`;
+      const name = repo;
+      const nfi = newFile("info.json", undefined, info);
+      const nfo = newFolder(name, undefined, new Map(), true);
+      let childs: Map<string, FolderType | FileType> = new Map();
+
+      for (const obj of content) {
+        obj.type == "file"
+          ? childs.set(obj.name, newFile(obj.name, nfo))
+          : childs.set(obj.name, newFolder(obj.name, nfo));
+      }
+
+      childs.set(nfi.name, nfi);
+
+      nfo.fullyVerified = true;
+      nfo.childs = childs;
+
+      this.create(path_to_include, nfo, true);
+
+      return Right(null);
+    }
+
+    if (username !== undefined) {
+      // it means is the Profile
+      // so it have to get the infos and the repositories
+      let page = 1;
+      const per_page = 100;
+      let info = await this.ghRepo.getUserInformation(username);
+
+      if (!info) return Left(`cannot find user info on github`);
+
+      const path_to_include = "/github";
+      const name = username;
+
+      const nfi = newFile("info.json", undefined, info);
+      const nfo = newFolder(name, undefined, new Map(), true);
+      let childs: Map<string, FolderType | FileType> = new Map();
+      let repos: any[] = [];
+
+      do {
+        repos = await this.ghRepo.getUserRepositories(username, page, per_page);
+        for (const obj of repos) {
+          obj.type == "file"
+            ? childs.set(obj.name, newFile(obj.name, nfo))
+            : childs.set(obj.name, newFolder(obj.name, nfo));
+        }
+        page++;
+      } while (repos.length == per_page);
+
+      nfo.childs = childs;
+
+      this.create(path_to_include, nfo, true);
+      this.create(`/github/${username}`, nfi, true);
+
+      return Right(null);
+    }
+    return Left(`no such file or directory: ${abs_path}`);
   }
 
-  createFile(path: string, content: string | undefined): Either<string, null> {
-    let pathSplited = path.split("/");
-    let currentNav: FolderType;
-    if (path.startsWith("/")) {
-      currentNav = this.root;
-      pathSplited.shift(); // when split left side of '/' becomes '' in array
+  private cascadianAux(elem: FolderType | FileType, acc: number): string {
+    if (elem.type == "file") {
+      return `${" ".repeat(acc)} .: ${elem.name}`;
     } else {
-      currentNav = this.current;
+      let child_str = "";
+      for (const c of elem.childs.values()) {
+        const str = this.cascadianAux(c, acc + 4);
+        child_str += child_str ? `\n${str}` : str;
+      }
+      child_str = child_str ? `\n${child_str}` : "";
+      return `${" ".repeat(acc)} d: ${elem.name}${child_str}`;
     }
-
-    while (pathSplited) {
-      let toFind = pathSplited[0];
-      if (toFind === "." && pathSplited.length === 1) {
-        // '.' is always existent
-        return Left(`cannot create ‘${path}’: File exists`);
-      } else if (toFind === ".") {
-        pathSplited.shift();
-        continue;
-      }
-      if (toFind === "..") {
-        // '..' represents parent folder
-        currentNav = currentNav.parent || this.root;
-        pathSplited.shift();
-        continue;
-      }
-      let child = currentNav.childs?.find((c) => c.name == toFind);
-
-      if (child && pathSplited.length === 1) {
-        // exists in the place of folder to be created and its a file
-        return Left(`cannot create ‘${path}’: File exists`);
-      } else if (child?.type == "file") {
-        // exists in the middle of the path to folder to be created and its a file
-        return Left(`cannot create ‘${path}’: Not a directory`);
-      } else if (child) {
-        // exists and its a folder
-        currentNav = child;
-        pathSplited.shift();
-        continue;
-      } else if (!child && pathSplited.length == 1) {
-        // not exists and needs to be created cause its file
-        createFileOn(currentNav, toFind, content);
-        return Right(null);
-      } else {
-        // not exists
-        return Left(`cannot create ‘${path}’: No such file or directory`);
-      }
-    }
-
-    return Left(`cannot create ‘${path}’: No such file or directory`);
   }
 
-  findFile(path: string): Either<string, FileType> {
-    let pathSplited = path.split("/");
-    let currentNav: FolderType;
-    if (path.startsWith("/")) {
-      currentNav = this.root;
-      pathSplited.shift();
-    } else {
-      currentNav = this.current;
-    }
-
-    while (pathSplited) {
-      let toFind = pathSplited[0];
-      if (toFind === ".") return Left(`${path}: Is a directory`);
-      if (toFind === "..") return Left(`${path}: Is a directory`);
-      if (toFind === "") {
-        pathSplited.shift();
-        continue;
-      }
-
-      let child = currentNav.childs?.find((c) => c.name == toFind);
-
-      if (child?.type === "file" && pathSplited.length === 1) {
-        return Right(child);
-      } else if (child?.type === "folder" && pathSplited.length === 1) {
-        return Left(`${path}: Is a directory`);
-      } else if (child?.type === "folder") {
-        currentNav = child;
-        pathSplited.shift();
-        continue;
-      } else if (child?.type === "file") {
-        // exists in path to folder to be find and its a file
-        return Left(`cannot remove '${path}': Not a directory`);
-      } else {
-        return Left(`cannot remove  ‘${path}’: No such file or directory`);
-      }
-    }
-
-    return Left(`'${path}': No such file or directory`);
-  }
-
-  remove(
-    path: string,
-    recursively: boolean,
-    empty: boolean
-  ): Either<string, null> {
-    if (path === "/")
-      return Left(`it is dangerous to operate recursively on '/'`);
-
-    let pathSplited = path.split("/");
-    let currentNav: FolderType;
-    if (path.startsWith("/")) {
-      currentNav = this.root;
-      pathSplited.shift(); // when split left side of '/' becomes '' in array
-    } else {
-      currentNav = this.current;
-    }
-
-    while (pathSplited) {
-      let toFind = pathSplited[0];
-      if (toFind === ".")
-        return Left(
-          `refusing to remove '.' or '..' directory: skipping '${path}'`
-        );
-      if (toFind === "..")
-        return Left(
-          `refusing to remove '.' or '..' directory: skipping '${path}'`
-        );
-      if (toFind === "") {
-        pathSplited.shift();
-        continue;
-      }
-
-      let child = currentNav.childs?.find((c) => c.name == toFind);
-
-      if (child?.type === "folder" && pathSplited.length === 1) {
-        let name = child.name;
-        if (child.childs?.length === 0 && empty)
-          child.parent?.childs?.filter((c) => c.name != name);
-        if (recursively) return Left(`cannot remove '${name}': Is a directory`);
-        child.parent?.childs?.filter((c) => c.name != name);
-        return Right(null);
-      } else if (child?.type === "file" && pathSplited.length === 1) {
-        let name = child.name;
-        child.parent?.childs?.filter((c) => c.name != name);
-        return Right(null);
-      } else if (child?.type === "folder") {
-        currentNav = child;
-        pathSplited.shift();
-        continue;
-      } else if (child?.type === "file") {
-        // exists in path to folder to be find and its a file
-        return Left(`cannot remove '${path}': Not a directory`);
-      } else {
-        return Left(`cannot remove  ‘${path}’: No such file or directory`);
-      }
-    }
-
-    return Left(`cannot remove  ‘${path}’: No such file or directory`);
+  printCascadian() {
+    console.log("Cascadian Representation\n", this.cascadianAux(this.root, 0));
   }
 }
 
 export { MemoryFileSystem, newFile, newFolder };
 export type { FileType, FolderType };
-
-/*
-
-// File System
-
-~ -> |  workspace ->  |  js  ->  |  pomodoro
-                                 |  blog
-                                 |  terminal
-                      -----------------------
-                      |  rust   ->  | git-check-cli
-                                    | process-test
-                                    | data-structures
-                      --------------------------------
-                      |  go ->  | adoptiong go
-                      -------------------------
-     |  pictures
-     |  videos
-     |  documents
-     |  downloads
-     |  musics
-
-*/
