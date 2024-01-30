@@ -94,6 +94,7 @@ const ShellProvider = ({ children }: { children: React.ReactNode }) => {
   let shell = new Shell(env, bins, file_system, ops)
   let [buffer, setBuffer] = useState<string>("");
   let [processing, setProcessing] = useState<boolean>(false);
+  let path = file_system.currentPath;
 
   const exec = async () => {
     setProcessing(true);
@@ -109,7 +110,7 @@ const ShellProvider = ({ children }: { children: React.ReactNode }) => {
     <ShellContext.Provider
       value={{
         ops,
-        path: file_system.currentPath,
+        path,
         buffer,
         processing,
         setBuffer,

@@ -6,9 +6,14 @@ import { ShellContext } from "../contexts/shell-provider";
 import { useContext } from "react";
 import Script from "next/script";
 
-const PathLine = ({ path }: { path: string }) => (
-  <span className="text-[16px] text-[#8BE9FD]">{path}</span>
-);
+const PathLine = ({ path }: { path: string }) => {
+  let splited = path.split("/")
+  let slice = splited.slice(Math.max(splited.length - 4, 0));
+  let rpath = slice.join("/");
+  return (
+  <span className="text-[16px] text-[#8BE9FD]">{rpath}</span>
+  )
+}
 
 const InputLabel = ({ input }: { input: string }) => (
   <div className="flex flex-row flex-wrap text-white">
