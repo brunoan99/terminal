@@ -281,13 +281,9 @@ class MemoryFileSystem {
       continue;
     }
     if (current == undefined) return Left(`no such file or directory: ${path}`);
-    if (current.type == "folder" && !current.fullyVerified) {
+    if (!current.fullyVerified) {
       await this.getGithubContent(abs_path);
-      current = pastCurrent.childs.get(current.name) as FolderType;
-    }
-    if (current.type == "file" && !current.fullyVerified) {
-      await this.getGithubContent(abs_path);
-      current = pastCurrent.childs.get(current.name) as FileType;
+      current = pastCurrent.childs.get(current.name) as FolderType | FileType;
     }
     return Right(current);
   }
