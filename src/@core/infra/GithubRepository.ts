@@ -1,34 +1,26 @@
 import { AxiosInstance } from "axios";
-import github_address from "../../config/github_address";
-import github_token from "../../config/github_token";
 import { IGithubRepository } from "./IGithubRepository";
+import local_address from "../../config/env/local_address";
+import local_token from "../../config/env/local_token";
 
 class GithubRepository implements IGithubRepository {
-  /*
-  TODO
-  IN FUTURE THIS CLASS NEEDS TO BE CALLED IN SERVER ONLY
-  USE SERVER ACTIONS TO DO IT
-  CAUSE IF DOESN'T THE TOKEN WILL BE EXPOSED TO THE CLIENT SIDE
-  ACTUALLY IT IS, BUT FOR CONVENIENCE
-
-  */
-  BASE_URL = `${github_address.url}`;
-  TOKEN = `${github_token.token}`;
+  private ADDRESS: string = `${local_address.value}`;
+  private TOKEN: string = `${local_token.value}`;
   constructor(private axios: AxiosInstance) {}
 
   async getUserInformation(usr: string): Promise<any | null> {
+    let request = {
+      url: `${this.ADDRESS}/get_user_info?usr=${usr}`,
+      method: "GET",
+      headers: {
+        Accept: "*/*",
+        T: this.TOKEN,
+      },
+    };
     try {
-      const request = {
-        url: `${this.BASE_URL}/users/${usr}`,
-        method: "GET",
-        headers: {
-          Accept: "*/*",
-          Authorization: `Bearer ${this.TOKEN}`,
-        },
-      };
-      process.nextTick(() => {});
-      const response = await this.axios.request(request);
-      return response.data;
+      let resp = await this.axios.request(request);
+      if (resp.status == 200) return resp.data;
+      return null;
     } catch (e) {
       return null;
     }
@@ -39,18 +31,17 @@ class GithubRepository implements IGithubRepository {
     page: number,
     per_page: number
   ): Promise<any | null> {
+    let request = {
+      url: `${this.ADDRESS}/get_user_repos?usr=${usr}&page=${page}&per_page=${per_page}`,
+      method: "GET",
+      headers: {
+        Accept: "*/*",
+      },
+    };
     try {
-      const request = {
-        url: `${this.BASE_URL}/users/${usr}/repos?per_page=${per_page}&page=${page}`,
-        method: "GET",
-        headers: {
-          Accept: "*/*",
-          Authorization: `Bearer ${this.TOKEN}`,
-        },
-      };
-      process.nextTick(() => {});
-      const response = await this.axios.request(request);
-      return response.data;
+      let resp = await this.axios.request(request);
+      if (resp.status == 200) return resp.data;
+      return null;
     } catch (e) {
       return null;
     }
@@ -61,36 +52,34 @@ class GithubRepository implements IGithubRepository {
     repo: string,
     path: string = ""
   ): Promise<any | null> {
+    let request = {
+      url: `${this.ADDRESS}/get_path_content?usr=${usr}&repo=${repo}&path=${path}`,
+      method: "GET",
+      headers: {
+        Accept: "*/*",
+      },
+    };
     try {
-      const request = {
-        url: `${this.BASE_URL}/repos/${usr}/${repo}/contents/${path}`,
-        method: "GET",
-        headers: {
-          Accept: "*/*",
-          Authorization: `Bearer ${this.TOKEN}`,
-        },
-      };
-      process.nextTick(() => {});
-      const response = await this.axios.request(request);
-      return response.data;
+      let resp = await this.axios.request(request);
+      if (resp.status == 200) return resp.data;
+      return null;
     } catch (e) {
       return null;
     }
   }
 
   async getRepositoryInformation(usr: string, repo: string): Promise<any> {
+    let request = {
+      url: `${this.ADDRESS}/get_repo_info?usr=${usr}&repo=${repo}`,
+      method: "GET",
+      headers: {
+        Accept: "*/*",
+      },
+    };
     try {
-      const request = {
-        url: `${this.BASE_URL}/repos/${usr}/${repo}`,
-        method: "GET",
-        headers: {
-          Accept: "application/vnd.github+json",
-          Authorization: `Bearer ${this.TOKEN}`,
-        },
-      };
-      process.nextTick(() => {});
-      const response = await this.axios.request(request);
-      return response.data;
+      let resp = await this.axios.request(request);
+      if (resp.status == 200) return resp.data;
+      return null;
     } catch (e) {
       return null;
     }
