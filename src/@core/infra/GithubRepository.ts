@@ -13,6 +13,7 @@ class GithubRepository implements IGithubRepository {
       url: `${this.ADDRESS}/get_user_info?usr=${usr}`,
       method: "GET",
       headers: {
+        "Access-Control-Allow-Origin": "*",
         Accept: "*/*",
         T: this.TOKEN,
       },
@@ -35,6 +36,7 @@ class GithubRepository implements IGithubRepository {
       url: `${this.ADDRESS}/get_user_repos?usr=${usr}&page=${page}&per_page=${per_page}`,
       method: "GET",
       headers: {
+        "Access-Control-Allow-Origin": "*",
         Accept: "*/*",
       },
     };
@@ -56,6 +58,7 @@ class GithubRepository implements IGithubRepository {
       url: `${this.ADDRESS}/get_path_content?usr=${usr}&repo=${repo}&path=${path}`,
       method: "GET",
       headers: {
+        "Access-Control-Allow-Origin": "*",
         Accept: "*/*",
       },
     };
@@ -73,6 +76,7 @@ class GithubRepository implements IGithubRepository {
       url: `${this.ADDRESS}/get_repo_info?usr=${usr}&repo=${repo}`,
       method: "GET",
       headers: {
+        "Access-Control-Allow-Origin": "*",
         Accept: "*/*",
       },
     };
