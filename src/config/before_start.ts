@@ -13,6 +13,8 @@ function initiation() {
   if (errors.length !== 0) stopApp();
 
   console.log("Env Check Ended");
+
+  console.log("Creating Container");
 }
 
 export { initiation };
