@@ -67,7 +67,7 @@ class Shell {
   private contain_clear: boolean = false;
   constructor(
     public envs: Environment,
-    public binSet: Binaries,
+    public bins: Binaries,
     public fileSystem: MemoryFileSystem,
     public ops: ShellOp[]
   ) {}
@@ -192,7 +192,7 @@ class Shell {
 
   private check_bin(input: BinCall): Either<string, null> {
     if (input.bin === "clear") return Right(null);
-    if (!this.binSet.contains(input.bin))
+    if (!this.bins.contains(input.bin))
       return Left(`zsh: command not found: ${input.bin}`);
     return Right(null);
   }
@@ -277,7 +277,7 @@ class Shell {
       };
     }
     this.just_cleared = false;
-    const bin = this.binSet.getBin(input.bin);
+    const bin = this.bins.getBin(input.bin);
     const args = this.eval_args(input.args);
     const bin_out = await (bin as Bin).exec(args, this.fileSystem);
     return {

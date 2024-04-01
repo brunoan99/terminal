@@ -1,19 +1,11 @@
 "use client"
 
-import { createContext, useMemo, useState } from "react";
-import { Shell, ShellOp } from "../../@core/domain/shell";
-import { Environment } from "../../@core/domain/environment";
-import { Binaries } from "../../@core/domain/binaries";
-import { MemoryFileSystem, newFile } from "../../@core/domain/file-system";
-import { LsBin } from "../../@core/data/binaries/ls";
-import { CdBin } from "../../@core/data/binaries/cd";
-import { CatBin } from "../../@core/data/binaries/cat";
-import { EchoBin } from "../../@core/data/binaries/echo";
-import { PwdBin } from "../../@core/data/binaries/pwd";
-import { TouchBin } from "../../@core/data/binaries/touch";
-import { MkdirBin } from "../../@core/data/binaries/mkdir";
-import { GithubRepository } from "../../@core/infra/GithubRepository";
-import { RmBin } from "../../@core/data/binaries/rm";
+import { createContext, useEffect, useMemo, useState } from "react";
+
+import { Shell, ShellOp } from "@domain";
+import { createMemorySystem } from "./memory-system";
+import { createBinaries } from "./binaries";
+import { createEnvironment } from "./environment";
 
 type ShellContextType = {
   ops: ShellOp[]
@@ -35,64 +27,35 @@ const defaultContext: ShellContextType = {
 
 const ShellContext = createContext<ShellContextType>(defaultContext);
 
-const environment = (): Environment => {
-  let env = new Environment();
-
-  return env;
-}
-
-const binaries = (): Binaries => {
-  let bins = new Binaries();
-
-  let ls_bin = new LsBin();
-  bins.insert(ls_bin);
-
-  let cat_bin = new CatBin();
-  bins.insert(cat_bin);
-
-  let cd_bin = new CdBin();
-  bins.insert(cd_bin);
-
-  let echo_bin = new EchoBin();
-  bins.insert(echo_bin);
-
-  let mkdir_bin = new MkdirBin();
-  bins.insert(mkdir_bin);
-
-  let pwd_bin = new PwdBin();
-  bins.insert(pwd_bin);
-
-  let rm_bin = new RmBin();
-  bins.insert(rm_bin);
-
-  let touch_bin = new TouchBin();
-  bins.insert(touch_bin);
-
-  return bins;
-}
-
-const memorySystem = (): MemoryFileSystem => {
-  let ghRepo = new GithubRepository();
-  let file_system = new MemoryFileSystem(ghRepo);
-
-  file_system.create("/any/folder", undefined, true);
-  file_system.create("/usr/bin", undefined, true);
-  file_system.create("/any", newFile("aopa", undefined,"an example and only a example"));
-  file_system.create("/any/folder", newFile("uepa"));
-  file_system.create("/github", undefined, true);
-
-  return file_system;
-}
-
 const ShellProvider = ({ children }: { children: React.ReactNode }) => {
-  let env = environment();
-  let bins = binaries();
-  let file_system = useMemo(() => memorySystem(), []);
-  let [ops] = useState<ShellOp[]>([]);
+  let env = useMemo(() => createEnvironment(), []);
+  let bins = createBinaries();
+  let file_system = useMemo(() => createMemorySystem(), []);
+  let ops = useMemo(() => [{
+    path: "/",
+    code: 0,
+    input: "cat info.txt",
+    output: `This project offers a terminal flow experience into navigate through Github
+
+To navigate to a Github profile just use 'cd github/{user}' or to a repository
+use 'cd github/{user}/{repo};
+
+The following commands will work as like in a shell:
+  - cat:    Concatenate FILE(s) to standard output;
+  - cd:     Change working directory;
+  - echo:   Display a line of text;
+  - ls:     List information about the FILEs (the current directory by default);
+  - mkdir:  Create the DIRECTORY(ies), if they do not already exist;
+  - pwd:    Print the full filename of the current working directory;
+  - rm:     Remove the FILE(s);
+  - touch:  A FILE argument that does not exist is created empty.`,
+  } as ShellOp], []);
+
+  let path = file_system.currentPath;
   let shell = new Shell(env, bins, file_system, ops)
   let [buffer, setBuffer] = useState<string>("");
   let [processing, setProcessing] = useState<boolean>(false);
-  let path = file_system.currentPath;
+
 
   const exec = async () => {
     setProcessing(true);
