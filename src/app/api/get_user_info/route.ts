@@ -1,10 +1,8 @@
-import axios from "axios";
 import github_address from "../../../config/env/github_address";
-import github_token from "../../../config/env/github_token";
 import { NextRequest, NextResponse } from "next/server";
+import { default_options } from "../utils/fetch_options";
 
 const BASE_URL = `${github_address.value}`;
-const TOKEN = `${github_token.value}`;
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,17 +11,9 @@ export async function GET(request: NextRequest) {
       return new NextResponse("User Needed", {
         status: 400,
       });
-    const request_to_do = {
-      url: `${BASE_URL}/users/${usr}`,
-      method: "GET",
-      headers: {
-        Accept: "*/*",
-        Authorization: `Bearer ${TOKEN}`,
-      },
-    };
-    process.nextTick(() => {});
-    const response = await axios.request(request_to_do);
-    let data = response.data;
+
+    let resp = await fetch(`${BASE_URL}/users/${usr}`, default_options);
+    let data = await resp.json();
     return NextResponse.json(data, {
       status: 200,
     });

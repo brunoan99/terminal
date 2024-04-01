@@ -12,7 +12,6 @@ import { EchoBin } from "../../@core/data/binaries/echo";
 import { PwdBin } from "../../@core/data/binaries/pwd";
 import { TouchBin } from "../../@core/data/binaries/touch";
 import { MkdirBin } from "../../@core/data/binaries/mkdir";
-import axios from "axios";
 import { GithubRepository } from "../../@core/infra/GithubRepository";
 import { RmBin } from "../../@core/data/binaries/rm";
 
@@ -73,8 +72,7 @@ const binaries = (): Binaries => {
 }
 
 const memorySystem = (): MemoryFileSystem => {
-  let axios_instance = axios.create();
-  let ghRepo = new GithubRepository(axios_instance);
+  let ghRepo = new GithubRepository();
   let file_system = new MemoryFileSystem(ghRepo);
 
   file_system.create("/any/folder", undefined, true);
