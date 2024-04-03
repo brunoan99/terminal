@@ -16,7 +16,7 @@ const PathLine = ({ path }: { path: string }) => {
 }
 
 const InputLabel = ({ input }: { input: string }) => (
-  <div className="no_scroLL-bar flex-row flex-wrap text-white break-words">
+  <div className="no_scroll-bar flex-row flex-wrap text-white break-words">
     <span className="no_scroll_bar text-[16px] text-[#50FA7B]">λ{' '}</span>
     <span className="no_scroll_bar">{input}</span>
   </div>

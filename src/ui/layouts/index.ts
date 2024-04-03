@@ -1,2 +1,3 @@
 export { HomePageDesktop } from "./Desktop";
-export { HomePageMobile } from "./Mobile";
+export { MobilePage } from "./Mobile";
+export { NotFoundPage } from "./NotFound";

@@ -1,6 +1,6 @@
-import { DesktopOnlyAdvice } from "../components/DesktopOnlyAdvice";
+import { DesktopOnlyAdvice } from "@components";
 
-export const HomePageMobile = () => {
+export const MobilePage = () => {
   return (
     <main>
       <DesktopOnlyAdvice />
