@@ -38,7 +38,7 @@ const ShellProvider = ({ children }: { children: React.ReactNode }) => {
     output: `This project offers a terminal flow experience into navigate through Github
 
 To navigate to a Github profile just use 'cd github/{user}' or to a repository
-use 'cd github/{user}/{repo};
+use 'cd github/{user}/{repo}';
 
 The following commands will work as like in a shell:
   - cat:    Concatenate FILE(s) to standard output;
