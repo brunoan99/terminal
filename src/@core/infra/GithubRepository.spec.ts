@@ -1,11 +1,10 @@
-import axios from "axios";
 import { GithubRepository } from "./GithubRepository";
 
 describe("Github Repository", () => {
   let sut: GithubRepository;
 
   beforeAll(() => {
-    sut = new GithubRepository(axios.create());
+    sut = new GithubRepository();
   });
 
   test("should get user information", async () => {

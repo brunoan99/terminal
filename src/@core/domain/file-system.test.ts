@@ -1,4 +1,3 @@
-import axios from "axios";
 import { GithubRepository } from "../infra/GithubRepository";
 import { IGithubRepository } from "../infra/IGithubRepository";
 import { MemoryFileSystem, newFile, newFolder } from "./file-system";
@@ -14,7 +13,7 @@ describe("Memory File System with Github Repository", () => {
   let ghRepo: IGithubRepository;
 
   beforeAll(async () => {
-    ghRepo = new GithubRepository(axios.create());
+    ghRepo = new GithubRepository();
     sut = new MemoryFileSystem(ghRepo);
     await sut.create("/", newFolder("github", undefined, new Map(), true));
   });

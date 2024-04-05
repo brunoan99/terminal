@@ -22,6 +22,7 @@
       "@layouts": ["./src/ui/layouts"],
       "@components": ["./src/ui/components"],
       "@domain": ["./src/@core/domain"],
+      "@data": ["./src/@core/data"],
       "@public/*": ["./public/*"]
     }
   },

@@ -1,6 +1,6 @@
 import { ScreenBackground, Terminal } from "@components";
 
-const HomePage = () => {
+export const HomePageDesktop = () => {
   return (
     <main>
       <ScreenBackground>
@@ -9,5 +9,3 @@ const HomePage = () => {
     </main>
   );
 };
-
-export { HomePage };

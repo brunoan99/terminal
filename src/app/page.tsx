@@ -1,5 +1,7 @@
-import { HomePage } from "../ui/layouts";
+import { HomePageDesktop, MobilePage } from "../ui/layouts";
+import { checkIsMobile } from "./utils/isMobile";
 
 export default function Home() {
-  return <HomePage />;
+  if (checkIsMobile()) return <MobilePage />
+  return <HomePageDesktop />;
 }
