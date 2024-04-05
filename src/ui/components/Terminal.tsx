@@ -1,14 +1,19 @@
 "use client";
 
-import "public/assets/css/Terminal.css";
-import { ShellOp } from "../@core/domain/shell";
+import "@public/assets/css/Terminal.css";
+import { ShellOp } from "@domain";
 import { ShellContext } from "../contexts/shell-provider";
-import { useContext, useEffect } from "react";
+import { useContext } from "react";
 import Script from "next/script";
 
-const PathLine = ({ path }: { path: string }) => (
-  <span className="text-[16px] text-[#8BE9FD]">{path}</span>
-);
+const PathLine = ({ path }: { path: string }) => {
+  let splited = path.split("/")
+  let slice = splited.slice(Math.max(splited.length - 4, 0));
+  let rpath = slice.join("/");
+  return (
+  <span className="text-[16px] text-[#8BE9FD]">{rpath}</span>
+  )
+}
 
 const InputLabel = ({ input }: { input: string }) => (
   <div className="flex flex-row flex-wrap text-white">
@@ -55,6 +60,7 @@ const InputLine = ({ path = "~", value = "", handleValueChange, handleSubmit }: 
         value={value}
         onChange={(e) => handleValueChange(e.target.value)}
         onKeyDown={(e) => {
+          if (e.code == "Tab") e.preventDefault();
           if (["Enter", "NumpadEnter"].includes(e.code)) {
             e.preventDefault();
             handleSubmit();
@@ -66,7 +72,7 @@ const InputLine = ({ path = "~", value = "", handleValueChange, handleSubmit }: 
 );
 
 const Terminal = () => {
-  const { ops, path, buffer, setBuffer, exec } = useContext(ShellContext);
+  const { ops, path, buffer, processing, setBuffer, exec } = useContext(ShellContext);
 
   return (
     <div id="terminal" className="terminal flex flex-col p-[10px] w-[805px] h-[604px] bg-[#282A36] opacity-[0.98] border-[#D6345B] border-[2.5px] whitespace-pre overflow-y-scroll leading-relaxed select-auto"
@@ -75,12 +81,18 @@ const Terminal = () => {
       <OutputLines
         outputs={ops}
       />
-      <InputLine
-        path={path}
-        value={buffer}
-        handleValueChange={setBuffer}
-        handleSubmit={exec}
-      />
+      { processing
+        ? <div>
+            <PathLine path={path} />
+            <InputLabel input={buffer} />
+          </div>
+        : <InputLine
+            path={path}
+            value={buffer}
+            handleValueChange={setBuffer}
+            handleSubmit={exec}
+          />}
+
     </div>
   );
 };

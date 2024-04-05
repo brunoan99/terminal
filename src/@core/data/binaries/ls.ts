@@ -18,7 +18,6 @@ class LsBin implements Bin {
       lines.push(line);
     }
 
-
     let col_width: number[] = [];
     for (let col = 0; col < lines[0].length; col++) {
       let max = lines[0][0].length;
@@ -29,12 +28,13 @@ class LsBin implements Bin {
       col_width.push(max);
     }
 
-    let string_lines = lines
-      .map((line) =>
-        line.map((name, index) => name.padEnd(col_width[index], " "))
-          .join("  "))
+    let string_lines = lines.map((line) =>
+      line.map((name, index) => name.padEnd(col_width[index], " ")).join("  ")
+    );
 
-    let breaks_char_limit = string_lines.some((value) => value.length > CHAR_LIMIT_PER_LINE)
+    let breaks_char_limit = string_lines.some(
+      (value) => value.length > CHAR_LIMIT_PER_LINE
+    );
 
     if (breaks_char_limit) {
       return this.arrange_names_in_lines(names, deep + 1);
@@ -42,22 +42,27 @@ class LsBin implements Bin {
     return string_lines;
   }
 
-  public exec(input: string[], fileSystem: MemoryFileSystem): BinResponse {
+  public async exec(
+    input: string[],
+    fileSystem: MemoryFileSystem
+  ): Promise<BinResponse> {
     /* options
       -1, --oneline           display one entry per line
       -l, --long              display extended file metadata as a table
       -a, --all               show hidden and 'dot' files. Use this twice to also show the '.' and '..' directories
     */
-    let path = input.filter((value) => !(value.startsWith('-') || value.startsWith('--')))[0]
+    let path = input.filter(
+      (value) => !(value.startsWith("-") || value.startsWith("--"))
+    )[0];
     if (!path) path = ".";
-    let op = fileSystem.listDirectoryContent(path);
-    if (isLeft(op)) return {
-      code: 1,
-      out: `"ls": ${op.left}`,
-    }
+    let op = await fileSystem.listDirectoryContent(path);
+    if (isLeft(op))
+      return {
+        code: 1,
+        out: `"ls": ${op.left}`,
+      };
     let contents = op.right;
-    const names = contents
-      .map((value) => value.name);
+    const names = Array.from(contents, ([name, value]) => name);
 
     let lines = this.arrange_names_in_lines(names);
     let out = lines.join("\n");
@@ -65,8 +70,8 @@ class LsBin implements Bin {
     return {
       code: 0,
       out: out,
-    }
+    };
   }
 }
 
-export { LsBin }
+export { LsBin };

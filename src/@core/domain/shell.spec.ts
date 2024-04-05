@@ -1,16 +1,50 @@
-import { Bin, Binaries } from "./binaries";
+import { IGithubRepository } from "../infra/IGithubRepository";
+import { Bin, BinResponse, Binaries } from "./binaries";
 import { Environment } from "./environment";
 import { MemoryFileSystem } from "./file-system";
 import { Shell } from "./shell";
 
 describe("Shell", () => {
+  let sut: Shell;
+
+  beforeAll(() => {
+    const echoBin = {
+      name: "echo",
+      exec: async (
+        input: string[],
+        fileSystem: MemoryFileSystem
+      ): Promise<BinResponse> =>
+        await new Promise((resolve) =>
+          resolve(
+            input[0] === "should_fail"
+              ? {
+                  code: 1,
+                  out: "wanted fail",
+                }
+              : {
+                  code: 0,
+                  out: `${input[0]}\n`,
+                }
+          )
+        ),
+    };
+    const binaries = new Binaries();
+    binaries.insert(echoBin);
+    const ghRepo = {
+      getUserInformation: jest.fn(),
+      getUserRepositories: jest.fn(),
+      getPathContent: jest.fn(),
+      getRepositoryInformation: jest.fn(),
+    } as jest.Mocked<IGithubRepository>;
+    sut = new Shell(
+      new Environment(),
+      binaries,
+      new MemoryFileSystem(ghRepo),
+      []
+    );
+  });
+
   describe("Split Expressions *Private*", () => {
-    let sut: Shell;
-
-    beforeAll(() => {
-      sut = new Shell(new Environment(), new Binaries(), new MemoryFileSystem());
-    });
-
     it("should return [] on empty string", () => {
       expect(sut["split_expression"]("")).toEqual([]);
     });
@@ -125,12 +159,6 @@ describe("Shell", () => {
   });
 
   describe("Parse", () => {
-    let sut: Shell;
-
-    beforeAll(() => {
-      sut = new Shell(new Environment(), new Binaries(), new MemoryFileSystem());
-    });
-
     it("should parse a Operator", () => {
       expect(sut.parse("; | || &&")).toEqual([
         { type: "op", op: ";" },
@@ -269,21 +297,6 @@ describe("Shell", () => {
   });
 
   describe("Check", () => {
-    let sut: Shell;
-
-    beforeAll(() => {
-      const echoBin = {
-        name: "echo",
-        exec: (input: string[], fileSystem: MemoryFileSystem) => ({
-          code: 0,
-          out: "",
-        })
-      };
-      const binaries = new Binaries();
-      binaries.insert(echoBin)
-      sut = new Shell(new Environment(), binaries, new MemoryFileSystem());
-    });
-
     it("should return no error when check should pass", () => {
       expect(
         sut.check([
@@ -401,47 +414,29 @@ describe("Shell", () => {
   });
 
   describe("Eval", () => {
-    let sut: Shell;
-
-    beforeEach(() => {
-      const echoBin = {
-        name: "echo",
-        exec: (input: string[], fileSystem: MemoryFileSystem) => {
-          return input[0] === "should_fail"
-            ? {
-              code: 1,
-              out: "wanted fail",
-            }
-            : {
-              code: 0,
-              out: `${input[0]}\n`,
-            };
-        }
-      };
-      const binaries = new Binaries();
-      binaries.insert(echoBin)
-      sut = new Shell(new Environment(), binaries, new MemoryFileSystem());
-    });
-
-    it("should process a bin call", () => {
-      expect(sut.eval([{ type: "bin", bin: "echo", args: ["123"] }])).toEqual({
+    it("should process a bin call", async () => {
+      expect(
+        await sut.eval([{ type: "bin", bin: "echo", args: ["123"] }])
+      ).toEqual({
         type: "eval_resp",
         out: "123\n",
         code: 0,
       });
     });
 
-    it("should eval args before bin call", () => {
+    it("should eval args before bin call", async () => {
       sut.envs.change("HOME", "/home/user");
-      expect(sut.eval([{ type: "bin", bin: "echo", args: ["$HOME"] }])).toEqual(
-        {
-          type: "eval_resp",
-          out: "/home/user\n",
-          code: 0,
-        }
-      );
       expect(
-        sut.eval([{ type: "bin", bin: "echo", args: ["$HOME/sub/folder"] }])
+        await sut.eval([{ type: "bin", bin: "echo", args: ["$HOME"] }])
+      ).toEqual({
+        type: "eval_resp",
+        out: "/home/user\n",
+        code: 0,
+      });
+      expect(
+        await sut.eval([
+          { type: "bin", bin: "echo", args: ["$HOME/sub/folder"] },
+        ])
       ).toEqual({
         type: "eval_resp",
         out: "/home/user/sub/folder\n",
@@ -449,37 +444,40 @@ describe("Shell", () => {
       });
     });
 
-    it("should include var to environment", () => {
-      expect(sut.envs.contains("any_name")).toBeFalsy();
-      sut.eval([{ type: "var", name: "any_name", value: "any_value" }]);
-      expect(sut.envs.contains("any_name")).toBeTruthy();
+    it("should include var to environment", async () => {
+      expect(sut.envs.contains("a1")).toBeFalsy();
+      await sut.eval([{ type: "var", name: "a1", value: "any_value" }]);
+      expect(sut.envs.contains("a1")).toBeTruthy();
     });
 
-    it("should eval the value before include var to environment", () => {
-      sut.eval([{ type: "var", name: "any", value: "any_value" }]);
-      expect(sut.envs.contains("foo")).toBeFalsy();
-      sut.eval([{ type: "var", name: "foo", value: "$any" }]);
-      expect(sut.envs.contains("foo")).toBeTruthy();
-      expect(sut.envs.getEnv("foo")).toBe("any_value");
+    it("should eval the value before include var to environment", async () => {
+      expect(sut.envs.contains("a2")).toBeFalsy();
+      await sut.eval([{ type: "var", name: "a2", value: "any_value" }]);
+      expect(sut.envs.contains("a3")).toBeFalsy();
+      await sut.eval([{ type: "var", name: "a3", value: "$a2" }]);
+      expect(sut.envs.contains("a3")).toBeTruthy();
+      expect(sut.envs.getEnv("a3")).toBe("any_value");
     });
 
-    it("should include env (export) to environment", () => {
-      expect(sut.envs.contains("any_name")).toBeFalsy();
-      sut.eval([{ type: "env", name: "any_name", value: "any_value" }]);
-      expect(sut.envs.contains("any_name")).toBeTruthy();
+    it("should include env (export) to environment", async () => {
+      expect(sut.envs.contains("a4")).toBeFalsy();
+      await sut.eval([{ type: "env", name: "a4", value: "any_value" }]);
+      expect(sut.envs.contains("a4")).toBeTruthy();
     });
 
-    it("should eval the value before include env to environment", () => {
-      sut.eval([{ type: "env", name: "any", value: "any_value" }]);
-      expect(sut.envs.contains("foo")).toBeFalsy();
-      sut.eval([{ type: "env", name: "foo", value: "$any" }]);
-      expect(sut.envs.contains("foo")).toBeTruthy();
-      expect(sut.envs.getEnv("foo")).toBe("any_value");
+    it("should eval the value before include env to environment", async () => {
+      expect(sut.envs.contains("a5")).toBeFalsy();
+      await sut.eval([{ type: "env", name: "a5", value: "any_value" }]);
+      expect(sut.envs.contains("a5")).toBeTruthy();
+      expect(sut.envs.contains("a6")).toBeFalsy();
+      await sut.eval([{ type: "env", name: "a6", value: "$a5" }]);
+      expect(sut.envs.contains("a6")).toBeTruthy();
+      expect(sut.envs.getEnv("a6")).toBe("any_value");
     });
 
-    it("should eval expressions around ; operator", () => {
+    it("should eval expressions around ; operator", async () => {
       expect(
-        sut.eval([
+        await sut.eval([
           { type: "bin", bin: "echo", args: ["123"] },
           { type: "op", op: ";" },
           { type: "bin", bin: "echo", args: ["234"] },
@@ -487,11 +485,11 @@ describe("Shell", () => {
       ).toEqual({
         type: "eval_resp",
         code: 0,
-        out: "123\n234\n",
+        out: "123\n\n234\n",
       });
 
       expect(
-        sut.eval([
+        await sut.eval([
           { type: "bin", bin: "echo", args: ["123"] },
           { type: "op", op: ";" },
         ])
@@ -502,9 +500,9 @@ describe("Shell", () => {
       });
     });
 
-    it("should eval expressions around && operator", () => {
+    it("should eval expressions around && operator", async () => {
       expect(
-        sut.eval([
+        await sut.eval([
           { type: "bin", bin: "echo", args: ["123"] },
           { type: "op", op: "&&" },
           { type: "bin", bin: "echo", args: ["234"] },
@@ -512,13 +510,13 @@ describe("Shell", () => {
       ).toEqual({
         type: "eval_resp",
         code: 0,
-        out: "123\n234\n",
+        out: "123\n\n234\n",
       });
     });
 
-    it("should eval expressions around || operator", () => {
+    it("should eval expressions around || operator", async () => {
       expect(
-        sut.eval([
+        await sut.eval([
           { type: "bin", bin: "echo", args: ["123"] },
           { type: "op", op: "||" },
           { type: "bin", bin: "echo", args: ["234"] },
@@ -530,9 +528,9 @@ describe("Shell", () => {
       });
     });
 
-    it("should eval expressions around | operator", () => {
+    it("should eval expressions around | operator", async () => {
       expect(
-        sut.eval([
+        await sut.eval([
           { type: "bin", bin: "echo", args: ["123"] },
           { type: "op", op: "|" },
           { type: "bin", bin: "echo", args: [] },
@@ -541,9 +539,9 @@ describe("Shell", () => {
       // in normal shell this don't return this result, but for simplifity and design limitations it could work like this
     });
 
-    it("should eval subshell", () => {
+    it("should eval subshell", async () => {
       expect(
-        sut.eval([
+        await sut.eval([
           {
             type: "subshell",
             statements: [{ type: "bin", bin: "echo", args: ["123"] }],
@@ -552,9 +550,9 @@ describe("Shell", () => {
       ).toEqual({ type: "eval_resp", code: 0, out: "123\n" });
     });
 
-    it("should eval subshell with operators in statements", () => {
+    it("should eval subshell with operators in statements", async () => {
       expect(
-        sut.eval([
+        await sut.eval([
           {
             type: "subshell",
             statements: [
@@ -567,9 +565,9 @@ describe("Shell", () => {
       ).toEqual({ type: "eval_resp", code: 0, out: "123\n" });
     });
 
-    it("should eval subshell after a operator", () => {
+    it("should eval subshell after a operator", async () => {
       expect(
-        sut.eval([
+        await sut.eval([
           { type: "bin", bin: "echo", args: ["123"] },
           { type: "op", op: "||" },
           {
@@ -584,7 +582,7 @@ describe("Shell", () => {
       ).toEqual({ type: "eval_resp", code: 0, out: "123\n" });
 
       expect(
-        sut.eval([
+        await sut.eval([
           { type: "bin", bin: "echo", args: ["123"] },
           { type: "op", op: "&&" },
           {
@@ -596,10 +594,10 @@ describe("Shell", () => {
             ],
           },
         ])
-      ).toEqual({ type: "eval_resp", code: 0, out: "123\n234\n" });
+      ).toEqual({ type: "eval_resp", code: 0, out: "123\n\n234\n" });
 
       expect(
-        sut.eval([
+        await sut.eval([
           { type: "bin", bin: "echo", args: ["123"] },
           { type: "op", op: "|" },
           {
@@ -610,7 +608,7 @@ describe("Shell", () => {
       ).toEqual({ type: "eval_resp", code: 0, out: "123\n\n" });
 
       expect(
-        sut.eval([
+        await sut.eval([
           { type: "bin", bin: "echo", args: ["123"] },
           { type: "op", op: ";" },
           {
@@ -618,54 +616,36 @@ describe("Shell", () => {
             statements: [{ type: "bin", bin: "echo", args: ["234"] }],
           },
         ])
-      ).toEqual({ type: "eval_resp", code: 0, out: "123\n234\n" });
+      ).toEqual({ type: "eval_resp", code: 0, out: "123\n\n234\n" });
     });
   });
 
   describe("Exec", () => {
-    let sut: Shell;
-
-    beforeEach(() => {
-      const echoBin = {
-        name: "echo",
-        exec: (input: string[], fileSystem: MemoryFileSystem) => {
-          return input[0] === "should_fail"
-            ? {
-              code: 1,
-              out: "wanted fail",
-            }
-            : {
-              code: 0,
-              out: `${input[0]}\n`,
-            };
-        }
-      };
-      const binaries = new Binaries();
-      binaries.insert(echoBin)
-      sut = new Shell(new Environment(), binaries, new MemoryFileSystem());
-    });
-
-    it("should exec an input", () => {
-      expect(sut.exec("echo 123; echo 234")).toEqual({
+    it("should exec an input", async () => {
+      expect(await sut.exec("echo 123; echo 234")).toEqual({
         code: 0,
+        path: "/",
         input: "echo 123; echo 234",
-        output: "123\n234\n",
+        output: "123\n\n234\n",
       });
 
-      expect(sut.exec("echo 123; (echo 234)")).toEqual({
+      expect(await sut.exec("echo 123; (echo 234)")).toEqual({
         code: 0,
+        path: "/",
         input: "echo 123; (echo 234)",
-        output: "123\n234\n",
+        output: "123\n\n234\n",
       });
 
-      expect(sut.exec("echo 123; (echo 234)")).toEqual({
+      expect(await sut.exec("echo 123; (echo 234)")).toEqual({
         code: 0,
+        path: "/",
         input: "echo 123; (echo 234)",
-        output: "123\n234\n",
+        output: "123\n\n234\n",
       });
 
-      expect(sut.exec("echo 123 || (echo 234)")).toEqual({
+      expect(await sut.exec("echo 123 || (echo 234)")).toEqual({
         code: 0,
+        path: "/",
         input: "echo 123 || (echo 234)",
         output: "123\n",
       });
