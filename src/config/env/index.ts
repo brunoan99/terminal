@@ -2,7 +2,6 @@ const envs = [
   { name: "GITHUB_ADDRESS", source: process.env.GITHUB_ADDRESS },
   { name: "GITHUB_TOKEN", source: process.env.GITHUB_TOKEN },
   { name: "LOCAL_ADDRESS", source: process.env.NEXT_PUBLIC_LOCAL_ADDRESS },
-  { name: "LOCAL_TOKEN", source: process.env.NEXT_PUBLIC_LOCAL_TOKEN },
 ];
 
 const checkEnvs = (): Error[] =>
