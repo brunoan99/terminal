@@ -1,8 +1,6 @@
-import github_address from "../../../config/env/github_address";
 import { NextRequest, NextResponse } from "next/server";
 import { default_options } from "../utils/fetch_options";
-
-const BASE_URL = `${github_address.value}`;
+import { getEnv } from "@config/env";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,9 +12,11 @@ export async function GET(request: NextRequest) {
     let page = request.nextUrl.searchParams.get("page");
     let per_page = request.nextUrl.searchParams.get("per_page");
 
+    let baseUrl = getEnv("GITHUB_ADDRESS");
+
     let resp = await fetch(
-      `${BASE_URL}/users/${usr}/repos?per_page=${per_page}&page=${page}`,
-      default_options
+      `${baseUrl}/users/${usr}/repos?per_page=${per_page}&page=${page}`,
+      default_options()
     );
     let data = await resp.json();
     return NextResponse.json(data, {

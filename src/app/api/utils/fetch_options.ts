@@ -1,11 +1,13 @@
-import github_token from "../../../config/env/github_token";
+import { getEnv } from "../../../config/env";
 
-const TOKEN = `${github_token.value}`;
+export const default_options = () => {
+  let token = getEnv("GITHUB_TOKEN");
 
-export const default_options = {
-  method: "GET",
-  headers: {
-    Accept: "*/*",
-    Authorization: `Bearer ${TOKEN}`,
-  },
-};
+  return {
+    method: "GET",
+    headers: {
+      Accept: "*/*",
+      Authorization: `Bearer ${token}`,
+    }
+  }
+}
