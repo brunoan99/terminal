@@ -9,8 +9,5 @@ const checkEnvs = (): Error[] =>
     .map((env) => (env.source ? null : new Error(`${env.name}, Not provided`)))
     .filter((error) => error != null) as Error[];
 
-const getEnv = (name: string): string | undefined => {
-  return process.env[name];
-}
 
-export { checkEnvs, getEnv };
+export { checkEnvs };

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { default_options } from "../utils/fetch_options";
-import { getEnv } from "@config/env";
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,7 +14,7 @@ export async function GET(request: NextRequest) {
         status: 400,
       });
 
-    let baseUrl = getEnv("GITHUB_ADDRESS");
+    let baseUrl = process.env.GITHUB_ADDRESS;
 
     let resp = await fetch(`${baseUrl}/repos/${usr}/${repo}`, default_options());
     let data = await resp.json();

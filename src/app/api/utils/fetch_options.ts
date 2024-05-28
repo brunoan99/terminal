@@ -1,7 +1,5 @@
-import { getEnv } from "../../../config/env";
-
 export const default_options = () => {
-  let token = getEnv("GITHUB_TOKEN");
+  let token = process.env.GITHUB_TOKEN;
 
   return {
     method: "GET",
