@@ -1,8 +1,5 @@
-import github_address from "../../../config/env/github_address";
 import { NextRequest, NextResponse } from "next/server";
 import { default_options } from "../utils/fetch_options";
-
-const BASE_URL = `${github_address.value}`;
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,7 +14,9 @@ export async function GET(request: NextRequest) {
         status: 400,
       });
 
-    let resp = await fetch(`${BASE_URL}/repos/${usr}/${repo}`, default_options);
+    let baseUrl = process.env.GITHUB_ADDRESS;
+
+    let resp = await fetch(`${baseUrl}/repos/${usr}/${repo}`, default_options());
     let data = await resp.json();
     return NextResponse.json(data, {
       status: 200,

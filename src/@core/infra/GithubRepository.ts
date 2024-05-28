@@ -1,8 +1,6 @@
 import { IGithubRepository } from "./IGithubRepository";
-import local_address from "../../config/env/local_address";
 
 class GithubAPIRestRepository implements IGithubRepository {
-  private ADDRESS: string = `${local_address.value}`;
   private default_options = {
     method: "GET",
     headers: {
@@ -14,8 +12,11 @@ class GithubAPIRestRepository implements IGithubRepository {
 
   async getUserInformation(usr: string): Promise<any | null> {
     try {
+      let address = process.env.NEXT_PUBLIC_LOCAL_ADDRESS;
+      console.log(`USER-REPOS: ${address}/get_user_info?usr=${usr}`);
+
       let resp = await fetch(
-        `${this.ADDRESS}/get_user_info?usr=${usr}`,
+        `${address}/get_user_info?usr=${usr}`,
         this.default_options
       );
       let data = await resp.json();
@@ -31,8 +32,11 @@ class GithubAPIRestRepository implements IGithubRepository {
     per_page: number
   ): Promise<any | null> {
     try {
+      let address = process.env.NEXT_PUBLIC_LOCAL_ADDRESS;
+      console.log(`USER-REPOS: ${address}/get_user_repos?usr=${usr}&page=${page}&per_page=${per_page}`);
+
       let resp = await fetch(
-        `${this.ADDRESS}/get_user_repos?usr=${usr}&page=${page}&per_page=${per_page}`,
+        `${address}/get_user_repos?usr=${usr}&page=${page}&per_page=${per_page}`,
         this.default_options
       );
       let data = await resp.json();
@@ -48,8 +52,11 @@ class GithubAPIRestRepository implements IGithubRepository {
     path: string = ""
   ): Promise<any | null> {
     try {
+      let address = process.env.NEXT_PUBLIC_LOCAL_ADDRESS;
+      console.log(`PATH: ${address}/get_path_content?usr=${usr}&repo=${repo}&path=${path}`);
+
       let resp = await fetch(
-        `${this.ADDRESS}/get_path_content?usr=${usr}&repo=${repo}&path=${path}`,
+        `${address}/get_path_content?usr=${usr}&repo=${repo}&path=${path}`,
         this.default_options
       );
       let data = await resp.json();
@@ -61,8 +68,11 @@ class GithubAPIRestRepository implements IGithubRepository {
 
   async getRepositoryInformation(usr: string, repo: string): Promise<any> {
     try {
+      let address = process.env.NEXT_PUBLIC_LOCAL_ADDRESS;
+      console.log(`REPO-INFO: ${address}/get_repo_info?usr=${usr}&repo=${repo}`);
+
       let resp = await fetch(
-        `${this.ADDRESS}/get_repo_info?usr=${usr}&repo=${repo}`,
+        `${address}/get_repo_info?usr=${usr}&repo=${repo}`,
         this.default_options
       );
       let data = await resp.json();
