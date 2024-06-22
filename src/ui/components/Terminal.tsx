@@ -3,28 +3,29 @@
 import "@public/assets/css/Terminal.css";
 import { ShellOp } from "@domain";
 import { ShellContext } from "../contexts/shell-provider";
-import { useContext, useEffect } from "react";
+import { useContext } from "react";
 import Script from "next/script";
+import Image from "next/image";
 
 const PathLine = ({ path }: { path: string }) => {
   let splited = path.split("/")
   let slice = splited.slice(Math.max(splited.length - 4, 0));
   let rpath = slice.join("/");
   return (
-  <span className="no_scroll_bar text-[16px] text-[#8BE9FD]">{rpath}</span>
+    <span className="no_scroll_bar text-[16.7px] text-[#8BE9FD]">{rpath}</span>
   )
 }
 
 const InputLabel = ({ input }: { input: string }) => (
-  <div className="no_scroll-bar flex-row flex-wrap text-white break-words">
-    <span className="no_scroll_bar text-[16px] text-[#50FA7B]">λ{' '}</span>
-    <span className="no_scroll_bar">{input}</span>
+  <div className="no_scroll-bar flex-row flex-wrap text-white break-words text-wrap">
+    <span className="no_scroll_bar text-[16.7px] text-brightGreen">λ{' '}</span>
+    <span className="no_scroll_bar text-[16.7px] text-brightWhite">{input}</span>
   </div>
 );
 
 const OutputResult = ({ result }: { result: string }) => (
-  <div className="no_scroll_bar break-words text-[16px]">
-    <span className="no_scroll_bar text-zinc-100 block w-[80ch]">{result}</span>
+  <div className="no_scroll_bar break-words text-[16.7px] text-brightWhite">
+    <span className="no_scroll_bar text-zinc-100 block w-[120ch] text-wrap">{result}</span>
   </div>
 );
 
@@ -40,9 +41,10 @@ const OutputLines = ({ outputs }: { outputs: Array<ShellOp> }) =>
 
 const Symbol = ({ failed }: { failed?: boolean }) =>
   failed ? (
-    <span className="no_scroll_bar text-[16px] text-[#FF5555]">λ&nbsp;</span>
+    <span className="no_scroll_bar text-[16.7px] text-brightRed">λ&nbsp;</span>
   ) : (
-    <span className="no_scroll_bar text-[16px] text-[#50FA7B]">λ&nbsp;</span>
+    <span className="no_scroll_bar text-[16.7px] text-brightGreen
+    ">λ&nbsp;</span>
   );
 
 const OnInput = (elem: HTMLElement) => {
@@ -61,7 +63,7 @@ const InputLine = ({ path = "~", value = "", handleValueChange, handleSubmit }: 
         id="text-area-buffer"
         rows={1}
         cols={75}
-        className="no_scroll_bar bg-[#282A36] text-white grow outline-none flex-wrap break-words resize-none"
+        className="no_scroll_bar text-[16.7px] text-brightWhite bg-[rgba(0,0,0,0)] grow outline-none flex-wrap break-words resize-none"
         value={value}
         onInput={(e) => OnInput(e.target as HTMLElement)}
         onChange={(e) => handleValueChange(e.target.value)}
@@ -77,13 +79,37 @@ const InputLine = ({ path = "~", value = "", handleValueChange, handleSubmit }: 
   </div>
 );
 
+const Tab = () => {
+  return (
+    <div className="w-[240px] h-[30px] bg-background flex flex-row rounded-t-[10px] font-sans">
+      <Image src="/assets/images/Tux-simple.png" alt="linux icon" width={20} height={20} className="h-[20px] mt-[5px] ml-[8px] mb-[5px] mr-[10px]"/>
+      <span className="self-center text-center text-tabTitleColor text-[11px] pt-[2px]">Arch</span>
+    </div>
+
+  )
+}
+
+const TabLine = () => {
+  return (
+    <div className="w-full h-[38px] bg-tabBackgroundColorOpacity rounded-t-[10px]">
+      <div className="pt-[8px] pl-[8px]">
+        <Tab />
+      </div>
+      <div></div>
+    </div>
+  )
+}
+
 const Terminal = () => {
   const { ops, path, buffer, processing, setBuffer, exec } = useContext(ShellContext);
 
   return (
-    <div id="terminal" className="no_scroll_bar terminal flex flex-col p-[10px] w-[805px] h-[604px] bg-[#282A36] opacity-[0.98] border-[#D6345B] border-[2.5px] whitespace-pre overflow-y-scroll leading-relaxed select-auto"
+    <div id="terminal" className="no_scroll_bar flex flex-col w-[1235px] h-[748px]  border-[#c9bcbf20] border-[1px]  whitespace-pre select-auto"
       onContextMenu={(e) => e.preventDefault()}
     >
+      <TabLine />
+      <div id="inner" className="no_scroll_bar p-[8px] bg-background leading-[1.4] h-[710px] overflow-y-scroll rounded-b-[10px] shadow-background shadow-2xl">
+
       <OutputLines
         outputs={ops}
       />
@@ -98,7 +124,7 @@ const Terminal = () => {
             handleValueChange={setBuffer}
             handleSubmit={exec}
           />}
-
+      </div>
     </div>
   );
 };

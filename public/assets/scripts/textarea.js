@@ -1,7 +1,7 @@
 /*
   Change scroll position to follow new output lines
 */
-const tm = document.getElementById("terminal");
+const tm = document.getElementById("inner");
 
 function scrollTotal() {
   tm.scrollTop = tm.scrollHeight;
