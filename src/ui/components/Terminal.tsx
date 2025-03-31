@@ -82,7 +82,7 @@ const InputLine = ({ path = "~", value = "", handleValueChange, handleSubmit }: 
 const Tab = () => {
   return (
     <div className="w-[240px] h-[30px] bg-background flex flex-row rounded-t-[10px] font-sans">
-      <Image src="/assets/images/Tux-simple.png" alt="linux icon" width={20} height={20} className="h-[20px] mt-[5px] ml-[8px] mb-[5px] mr-[10px]"/>
+      <Image src="/assets/images/Tux-simple.png" alt="linux icon" width={20} height={20} className="h-[20px] mt-[5px] ml-[8px] mb-[5px] mr-[10px]" />
       <span className="self-center text-center text-tabTitleColor text-[11px] pt-[2px]">Arch</span>
     </div>
 
@@ -109,16 +109,15 @@ const Terminal = () => {
     >
       <TabLine />
       <div id="inner" className="no_scroll_bar p-[8px] bg-background leading-[1.4] h-[710px] overflow-y-scroll rounded-b-[10px] shadow-background shadow-2xl">
-
-      <OutputLines
-        outputs={ops}
-      />
-      { processing
-        ? <div>
+        <OutputLines
+          outputs={ops}
+        />
+        {processing
+          ? <div>
             <PathLine path={path} />
             <InputLabel input={buffer} />
           </div>
-        : <InputLine
+          : <InputLine
             path={path}
             value={buffer}
             handleValueChange={setBuffer}
