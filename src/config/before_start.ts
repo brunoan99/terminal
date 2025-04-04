@@ -11,6 +11,7 @@ function initiation() {
   let errors = checkEnvs();
   errors.map((error: Error) => console.error(error.message));
   if (errors.length !== 0) stopApp();
+  else console.log("All envs are provided");
 
   console.log("Env Check Ended");
 }
