@@ -1,6 +1,6 @@
 "use client";
 
-import "@public/assets/css/Terminal.css";
+import "../styles/Terminal.css";
 import { ShellOp } from "@domain";
 import { ShellContext } from "../contexts/shell-provider";
 import { useContext } from "react";
@@ -18,13 +18,13 @@ const PathLine = ({ path }: { path: string }) => {
 
 const InputLabel = ({ input }: { input: string }) => (
   <div className="no_scroll-bar flex-row flex-wrap text-white break-words text-wrap">
-    <span className="no_scroll_bar text-[16.7px] text-brightGreen">λ{' '}</span>
-    <span className="no_scroll_bar text-[16.7px] text-brightWhite">{input}</span>
+    <span className="no_scroll_bar text-[16.7px] text-bright-green">λ{' '}</span>
+    <span className="no_scroll_bar text-[16.7px] text-bright-white">{input}</span>
   </div>
 );
 
 const OutputResult = ({ result }: { result: string }) => (
-  <div className="no_scroll_bar break-words text-[16.7px] text-brightWhite">
+  <div className="no_scroll_bar break-words text-[16.7px] text-bright-white">
     <span className="no_scroll_bar text-zinc-100 block w-[120ch] text-wrap">{result}</span>
   </div>
 );
@@ -41,9 +41,9 @@ const OutputLines = ({ outputs }: { outputs: Array<ShellOp> }) =>
 
 const Symbol = ({ failed }: { failed?: boolean }) =>
   failed ? (
-    <span className="no_scroll_bar text-[16.7px] text-brightRed">λ&nbsp;</span>
+    <span className="no_scroll_bar text-[16.7px] text-bright-red">λ&nbsp;</span>
   ) : (
-    <span className="no_scroll_bar text-[16.7px] text-brightGreen
+    <span className="no_scroll_bar text-[16.7px] text-bright-green
     ">λ&nbsp;</span>
   );
 
@@ -63,7 +63,7 @@ const InputLine = ({ path = "~", value = "", handleValueChange, handleSubmit }: 
         id="text-area-buffer"
         rows={1}
         cols={75}
-        className="no_scroll_bar text-[16.7px] text-brightWhite bg-[rgba(0,0,0,0)] grow outline-none flex-wrap break-words resize-none"
+        className="no_scroll_bar text-[16.7px] text-bright-white bg-[rgba(0,0,0,0)] grow outline-hidden flex-wrap break-words resize-none"
         value={value}
         onInput={(e) => OnInput(e.target as HTMLElement)}
         onChange={(e) => handleValueChange(e.target.value)}
@@ -82,8 +82,8 @@ const InputLine = ({ path = "~", value = "", handleValueChange, handleSubmit }: 
 const Tab = () => {
   return (
     <div className="w-[240px] h-[30px] bg-background flex flex-row rounded-t-[10px] font-sans">
-      <Image src="/assets/images/Tux-simple.png" alt="linux icon" width={20} height={20} className="h-[20px] mt-[5px] ml-[8px] mb-[5px] mr-[10px]" />
-      <span className="self-center text-center text-tabTitleColor text-[11px] pt-[2px]">Arch</span>
+      <Image src="/assets/images/icon/ubuntu-logo-vector.svg" alt="linux icon" width={20} height={20} className="h-[20px] mt-[5px] ml-[8px] mb-[5px] mr-[10px]" />
+      <span className="self-center text-center text-tab-title-color text-[14px] pt-[2px]">Ubuntu</span>
     </div>
 
   )
@@ -91,7 +91,7 @@ const Tab = () => {
 
 const TabLine = () => {
   return (
-    <div className="w-full h-[38px] bg-tabBackgroundColorOpacity rounded-t-[10px]">
+    <div className="w-full h-[38px] bg-tab-background-color-opacity rounded-t-[10px]">
       <div className="pt-[8px] pl-[8px]">
         <Tab />
       </div>
