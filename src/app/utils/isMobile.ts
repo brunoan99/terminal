@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 
-export const checkIsMobile = (): boolean => {
-  const headersList = headers();
+export async function checkIsMobile(): Promise<boolean> {
+  const headersList = await headers();
   const UA = headersList.get("user-agent");
   if (!UA) return false;
   return Boolean(
@@ -9,4 +9,4 @@ export const checkIsMobile = (): boolean => {
       /Android|BlackBerry|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i
     )
   );
-};
+}
