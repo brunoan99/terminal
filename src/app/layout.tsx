@@ -1,5 +1,5 @@
 import { ShellProvider } from "../ui/contexts/shell-provider";
-import "./globals.css";
+import "../ui/styles/globals.css";
 import type { Metadata } from "next";
 import localFont from "next/font/local"
 
