@@ -1,4 +1,4 @@
-import { MemoryFileSystem } from "./file-system";
+import type { MemoryFileSystem } from "./file-system";
 
 type BinResponse = {
   code: number;
@@ -28,5 +28,6 @@ class Binaries {
   }
 }
 
-export type { BinResponse, Bin, BinSet };
 export { Binaries };
+export type { Bin, BinResponse, BinSet };
+

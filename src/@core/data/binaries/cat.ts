@@ -1,6 +1,7 @@
-import { isLeft } from "fp-ts/lib/Either";
-import { BinResponse, Bin } from "../../domain/binaries";
-import { MemoryFileSystem } from "../../domain/file-system";
+import { isLeft } from "../../../utils/effect-helper";
+import type { Bin, BinResponse } from "../../domain/binaries";
+import type { MemoryFileSystem } from "../../domain/file-system";
+import { Either } from "effect";
 
 class CatBin implements Bin {
   public name: string = "cat";
@@ -12,6 +13,11 @@ class CatBin implements Bin {
     if (!path) path = ".";
 
     let op = await fileSystem.find(path);
+
+    Either.mapBoth(op, {
+      onLeft: (left) => { },
+      onRight: (right) => { },
+    })
 
     if (isLeft(op))
       return {

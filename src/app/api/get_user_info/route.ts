@@ -9,8 +9,6 @@ export async function GET(request: NextRequest) {
         status: 400,
       });
 
-
-
     let baseUrl = process.env.GITHUB_ADDRESS;
 
     let resp = await fetch(`${baseUrl}/users/${usr}`, default_options());

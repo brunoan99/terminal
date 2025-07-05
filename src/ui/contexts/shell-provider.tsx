@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useEffect, useMemo, useState } from "react";
+import { createContext, useMemo, useState } from "react";
 
 import { Shell, ShellOp } from "@domain";
 import { createMemorySystem } from "./memory-system";
